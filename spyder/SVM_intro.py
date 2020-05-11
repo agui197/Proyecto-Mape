@@ -9,6 +9,7 @@ Created on Wed May  6 12:13:54 2020
 import numpy as np
 import matplotlib.pyplot as plt
 
+
 #%% Generacion de los datos
 n = 20
 x1 = np.linspace(-10,10,n)
@@ -20,7 +21,7 @@ x1m = np.ravel(X1.T)
 x2m = np.ravel(X2.T)
 Xm = np.c_[x1m,x2m]
 y = np.ravel(Y.T)
-Ym = np.matrix(y).T*np.matrix(y)
+
 
 #%% Visualizar los datos
 plt.scatter(x1m,x2m,c=y)
@@ -31,6 +32,7 @@ from sklearn.metrics.pairwise import linear_kernel
 K = linear_kernel(Xm,Xm)
 
 #%% Optimization Variables
+Ym = np.matrix(y).T*np.matrix(y)
 H = np.multiply(K,Ym)
 onev = -np.ones((y.shape[0],1))
 Aeq = np.float64(np.reshape(y,(1,y.shape[0])))
