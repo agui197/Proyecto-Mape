@@ -10,7 +10,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from sklearn.metrics.pairwise import linear_kernel
-from cvxopt import matrix, solvers
 import cvxpy as cp #https://www.cvxpy.org/
 from sklearn.metrics import mean_squared_error
 
@@ -21,8 +20,8 @@ def mean_absolute_percentage_error(y_true,y_pred):
 #%% Generacion de los datos
 np.random.seed(1)
 n = 20
-x1 = np.linspace(-10,10,n)
-x2 = np.linspace(-10,10,n)
+x1 = np.linspace(1,20,n)
+x2 = np.linspace(1,20,n)
 X1,X2 = np.meshgrid(x1,x2)
 Y = 2*X1+3*X2+40+(5*np.random.rand(X1.shape[0],X1.shape[0])-2.5)
 
@@ -30,6 +29,7 @@ x1m = np.ravel(X1.T)
 x2m = np.ravel(X2.T)
 Xm = np.c_[x1m,x2m]
 y = np.ravel(Y.T)
+nsamples = y.shape[0]
 
 #%% Visualizar los datos
 fig = plt.figure()
@@ -43,22 +43,27 @@ plt.show()
 #%% Kernel matrix
 K = linear_kernel(Xm,Xm)
 
-#%% Optimization RMSE usando cvxpy
-epsilon = 0.1 # margin max
+#%% Optimization E-regression usando cvxpy
+epsilon = 0.01 # margin max
 c = 10 # alphas constraint
-onev = np.ones((y.shape[0],1))
+onev = np.ones((nsamples,1))
 error = 1E-5 # vector support 
 
-alpha1 = cp.Variable((y.shape[0],1))
-alpha2 = cp.Variable((y.shape[0],1))
+alpha1 = cp.Variable((nsamples,1))
+alpha2 = cp.Variable((nsamples,1))
 
-#% RMSE minimization
+#% Forma Original
 Ev = onev*epsilon
 objective = cp.Minimize((1/2)*cp.quad_form(alpha1-alpha2, K) + Ev.T @ (alpha1+alpha2) - y.T @ (alpha1 - alpha2))
-h=np.float64(c*np.ones((y.shape[0],1)))
-constraints = [onev.T @ (alpha1-alpha2) == 0, alpha1 >= 0, alpha1 <= h,alpha2 >= 0, alpha2 <= h]
-prob = cp.Problem(objective,constraints)
+
+# Restricciones forma matricial
+G = np.float64(np.concatenate((np.identity(nsamples),-np.identity(nsamples))))
+h = np.float64(np.concatenate((c*np.ones((nsamples,1)),np.zeros((nsamples,1)))))
+
+constraints = [onev.T @ (alpha1-alpha2) == 0, G @ alpha1 <= h, G @ alpha2 <= h]
+
 # The optimal objective value is returned by `prob.solve()`.
+prob = cp.Problem(objective,constraints)
 result = prob.solve()
 
 alpha1 = np.array(alpha1.value)
@@ -70,19 +75,19 @@ x_sv = Xm[indx[:,0],:]
 y_sv = y[indx[:,0]]
 
 
-w_rmse = np.sum(np.c_[alpha_sv,alpha_sv]*x_sv,axis=0)
-b_rmse = np.mean(y_sv-np.dot(x_sv,w_rmse))
+w_Ereg = np.sum(np.c_[alpha_sv,alpha_sv]*x_sv,axis=0)
+b_Ereg = np.mean(y_sv-np.dot(x_sv,w_Ereg))
 
-print('w_rmse=[%0.3f,%0.3f]'%(w_rmse[0],w_rmse[1]))
-print('b_rmse=%0.3f'%b_rmse)
+print('w_Ereg=[%0.3f,%0.3f]'%(w_Ereg[0],w_Ereg[1]))
+print('b_Ereg=%0.3f'%b_Ereg)
 
 #% Visualizar los resultados
-y_rmse = w_rmse[0]*x1m+w_rmse[1]*x2m+b_rmse
+y_Ereg = w_Ereg[0]*x1m+w_Ereg[1]*x2m+b_Ereg
 
 fig = plt.figure()
 ax = fig.add_subplot(111, projection='3d')
 ax.scatter(x1m, x2m, y, c=y,s=5)
-ax.scatter(x1m, x2m, y_rmse, c='r',s=10)
+ax.scatter(x1m, x2m, y_Ereg, c='r',s=10)
 ax.view_init(30, 0)
 plt.show()
 
@@ -93,24 +98,26 @@ plt.show()
 
 ######################################
 #%% Optimization MAPE usando cvxpy
-epsilon = 0.1 # margin max
-c = 20 # alphas constraint
-onev = np.ones((y.shape[0],1))
+epsilon = 0.01 # margin max
+c = 10 # alphas constraint
+onev = np.ones((nsamples,1))
 
 error = 1E-5 # vector support 
 
-alpha1 = cp.Variable((y.shape[0],1))
-alpha2 = cp.Variable((y.shape[0],1))
-#%
-Ev = np.reshape(y,(y.shape[0],1))*epsilon
+alpha1 = cp.Variable((nsamples,1))
+alpha2 = cp.Variable((nsamples,1))
+
+#% Forma MAPE
+Ev = np.reshape(y,(nsamples,1))*epsilon
 objective = cp.Minimize((1/2)*cp.quad_form(alpha1-alpha2, K) + Ev.T @ (alpha1+alpha2) - y.T @ (alpha1 - alpha2))
 
-h=np.float64(abs(c/np.reshape(y,(y.shape[0],1))))
+# Restricciones forma matricial
+G = np.float64(np.concatenate((np.identity(nsamples),-np.identity(nsamples))))
+h=np.float64(np.concatenate((c/np.reshape(y,(nsamples,1)),np.zeros((nsamples,1)))))
+constraints = [onev.T @ (alpha1-alpha2) == 0, G @ alpha1 <= h, G @ alpha2 <= h]
 
-constraints = [onev.T @ (alpha1-alpha2) == 0, alpha1 >= 0, alpha1 <= h,alpha2 >= 0, alpha2 <= h]
-prob = cp.Problem(objective,constraints)
-#%
 # The optimal objective value is returned by `prob.solve()`.
+prob = cp.Problem(objective,constraints)
 result = prob.solve()
 
 
@@ -140,6 +147,6 @@ ax.view_init(30, 0)
 plt.show()
 
 #%% Evaluacion de ambas implementaciones
-rmse1,mape1 = mean_squared_error(y,y_rmse),mean_absolute_percentage_error(y,y_rmse)
+rmse1,mape1 = mean_squared_error(y,y_Ereg),mean_absolute_percentage_error(y,y_Ereg)
 rmse2,mape2 = mean_squared_error(y,y_mape),mean_absolute_percentage_error(y,y_mape)
-print('\n\n\t Obj RMSE\t Obj MAPE\n RMSE\t %0.4f\t\t %0.4f\nMAPE\t %0.4f\t\t %0.4f'%(rmse1,rmse2,mape1,mape2))
+print('\n\n\t Obj E_reg\t Obj MAPE\n RMSE\t %0.4f\t\t %0.4f\n MAPE\t %0.4f\t\t %0.4f'%(rmse1,rmse2,mape1,mape2))
