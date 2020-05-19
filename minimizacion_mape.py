@@ -38,6 +38,7 @@ def SVR_E(X, y, epsilon=0.01, c=10):
     constraints = [onev.T @ (alpha1 - alpha2) == 0, G @ alpha1 <= h, G @ alpha2 <= h]
     
     prob = Problem(objective, constraints)
+    print(constraints,prob)
     result = prob.solve()
     
     alpha1 = array(alpha1.value)
@@ -314,8 +315,10 @@ c = 7
 consumo, consumofeb = cargar()
 modclima = modelosclima(c)
 X = kron(n)
-X_train, X_test, y_train, y_test = train_test_split(X, consumo, test_size=n, shuffle=False)
-# w_Ereg, b_Ereg = SVR_E(X_train, y_train, epsilon=0.01, c=10)
+y = ravel(consumo)
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=n, shuffle=False)
+#w_Ereg, b_Ereg = SVR_E(X_train, y_train, epsilon=0.01, c=10)
+w_mape, b_mape = SVR_E_MAPE(X_train, y_train, epsilon=0.01, c=10)
 
 random.seed(1)
 n = 20
