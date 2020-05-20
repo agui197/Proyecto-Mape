@@ -104,7 +104,7 @@ plt.show()
 
 
 ######################################
-#%% Optimization MAPE usando cvxpy
+#%% Optimization E-regression MAPE usando cvxpy
 def SVR_E_MAPE(X,y,epsilon=0.01,c=10):
     # epsilon = 0.01 # margin max
     # c = 10 # alphas constraint
@@ -142,7 +142,7 @@ def SVR_E_MAPE(X,y,epsilon=0.01,c=10):
     y_sv = y[indx[:,0]]
     
     
-    w = np.sum(np.transpose(np.tile(alpha_sv,(2,1)))*x_sv,axis=0)
+    w = np.sum(np.transpose(np.tile(alpha_sv,(nfeatures,1)))*x_sv,axis=0)
     b = np.mean(y_sv-np.dot(x_sv,w))
     
     print('w=')
@@ -161,6 +161,131 @@ fig = plt.figure()
 ax = fig.add_subplot(111, projection='3d')
 ax.scatter(x1m, x2m, y, c=y,s=5)
 ax.scatter(x1m, x2m, y_mape, c='r',s=10)
+ax.view_init(30, 0)
+plt.show()
+
+#%% Optimization classic v formulation E-regression usando cvxpy
+def SVR_vE(X,y,epsilon=0.01,c=10,v=1):
+#    epsilon = 0.01 # margin max
+#    v = 1 # New term
+#    c = 10 # alphas constraint
+    
+    umbral = 1E-5 # vector support 
+    nsamples,nfeatures = np.shape(X)
+    onev = np.ones((nsamples,1))
+    
+    # Kernel matrix
+    K = linear_kernel(X,X)
+    
+    alpha1 = cp.Variable((nsamples,1))
+    alpha2 = cp.Variable((nsamples,1))
+    
+    #% Forma Original
+    objective = cp.Minimize((1/2)*cp.quad_form(alpha1-alpha2, K) - y.T @ (alpha1 - alpha2))
+    
+    # Restricciones forma matricial
+    G = np.float64(np.concatenate((np.identity(nsamples),-np.identity(nsamples))))
+    h = np.float64(np.concatenate((c*np.ones((nsamples,1)),np.zeros((nsamples,1)))))
+    
+    constraints = [onev.T @ (alpha1-alpha2) == 0,
+                   onev.T @ (alpha1+alpha2) == c*v,
+                   G @ alpha1 <= h,
+                   G @ alpha2 <= h]
+    
+    # The optimal objective value is returned by `prob.solve()`.
+    prob = cp.Problem(objective,constraints)
+    result = prob.solve()
+    
+    alpha1 = np.array(alpha1.value)
+    alpha2 = np.array(alpha2.value)
+    alphas = alpha1-alpha2
+    indx = abs(alphas) > umbral
+    alpha_sv = alphas[indx]
+    x_sv = X[indx[:,0],:]
+    y_sv = y[indx[:,0]]
+    
+    
+    w = np.sum(np.transpose(np.tile(alpha_sv,(nfeatures,1)))*x_sv,axis=0)
+    b = np.mean(y_sv-np.dot(x_sv,w))
+    
+    print('w=')
+    print(w)
+    print('b=')
+    print(b)
+    
+    return w,b
+
+#%% Aplicar la regresion epsilon con formulacion v
+w_vE,b_vE = SVR_vE(Xm,y,epsilon=0.01,c=10,v=1)
+#% Visualizar los resultados
+y_vE = w_vE[0]*x1m+w_vE[1]*x2m+b_vE
+
+fig = plt.figure()
+ax = fig.add_subplot(111, projection='3d')
+ax.scatter(x1m, x2m, y, c=y,s=5)
+ax.scatter(x1m, x2m, y_vE, c='r',s=10)
+ax.view_init(30, 0)
+plt.show()
+
+#%% Optimization v formulation MAPE-regression usando cvxpy
+def SVR_vMAPE(X,y,epsilon=0.01,c=10,v=1):
+#    epsilon = 0.01 # margin max
+#    v = 1 # New term
+#    c = 10 # alphas constraint
+    
+    umbral = 1E-5 # vector support 
+    nsamples,nfeatures = np.shape(X)
+    onev = np.ones((nsamples,1))
+    
+    # Kernel matrix
+    K = linear_kernel(X,X)
+    
+    alpha1 = cp.Variable((nsamples,1))
+    alpha2 = cp.Variable((nsamples,1))
+    
+    #% Forma MAPE
+    objective = cp.Minimize((1/2)*cp.quad_form(alpha1-alpha2, K) - y.T @ (alpha1 - alpha2))
+    
+    # Restricciones forma matricial
+    G = np.float64(np.concatenate((np.identity(nsamples),-np.identity(nsamples))))
+    h=np.float64(np.concatenate((c/np.reshape(y,(nsamples,1)),np.zeros((nsamples,1)))))
+    constraints = [onev.T @ (alpha1-alpha2) == 0,
+                   y.T @ (alpha1+alpha2) == c*v,
+                   G @ alpha1 <= h,
+                   G @ alpha2 <= h]
+    
+    # The optimal objective value is returned by `prob.solve()`.
+    prob = cp.Problem(objective,constraints)
+    result = prob.solve()
+    
+    alpha1 = np.array(alpha1.value)
+    alpha2 = np.array(alpha2.value)
+    alphas = alpha1-alpha2
+    indx = abs(alphas) > umbral
+    alpha_sv = alphas[indx]
+    x_sv = X[indx[:,0],:]
+    y_sv = y[indx[:,0]]
+    
+    
+    w = np.sum(np.transpose(np.tile(alpha_sv,(nfeatures,1)))*x_sv,axis=0)
+    b = np.mean(y_sv-np.dot(x_sv,w))
+    
+    print('w=')
+    print(w)
+    print('b=')
+    print(b)
+    
+    return w,b
+
+#%% Aplicar la regresion epsilon con formulacion v
+w_vmape,b_vmape = SVR_vMAPE(Xm,y,epsilon=0.01,c=10,v=1)
+#% Visualizar los resultados
+y_vmape = w_vmape[0]*x1m+w_vmape[1]*x2m+b_vmape
+
+fig = plt.figure()
+ax = fig.add_subplot(111, projection='3d')
+ax.scatter(x1m, x2m, y, c=y,s=5)
+ax.scatter(x1m, x2m, y_vmape, c='r',s=10)
 ax.view_init(30, 0)
 plt.show()
 
