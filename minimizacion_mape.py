@@ -18,6 +18,7 @@ def mean_absolute_percentage_error(y_true, y_pred):
 
 
 def SVR_E(X, y, epsilon=0.01, c=10):
+    print(shape(X),shape(y))
     umbral = 1E-5 
     
     nsamples, nfeatures = shape(X)
@@ -29,7 +30,7 @@ def SVR_E(X, y, epsilon=0.01, c=10):
     alpha2 = Variable((nsamples, 1))
     
     Ev = onev * epsilon
-    print(alpha1, alpha2, Ev, K)
+    
     objective = Minimize(
         (1/2) * quad_form(alpha1 - alpha2, K) + Ev.T @ (alpha1 + alpha2) - y.T @ (alpha1 - alpha2))
     G = float64(concatenate((identity(nsamples), -identity(nsamples))))
@@ -38,7 +39,7 @@ def SVR_E(X, y, epsilon=0.01, c=10):
     constraints = [onev.T @ (alpha1 - alpha2) == 0, G @ alpha1 <= h, G @ alpha2 <= h]
     
     prob = Problem(objective, constraints)
-    print(constraints,prob)
+    
     result = prob.solve()
     
     alpha1 = array(alpha1.value)
@@ -46,7 +47,7 @@ def SVR_E(X, y, epsilon=0.01, c=10):
     alphas = alpha1 - alpha2
     indx = abs(alphas) > umbral
     alpha_sv = alphas[indx]
-    x_sv = X[indx[:, 0], :]
+    x_sv = X[indx[:, 0]]
     y_sv = y[indx[:, 0]]
     
     
@@ -317,8 +318,9 @@ modclima = modelosclima(c)
 X = kron(n)
 y = ravel(consumo)
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=n, shuffle=False)
-#w_Ereg, b_Ereg = SVR_E(X_train, y_train, epsilon=0.01, c=10)
-w_mape, b_mape = SVR_E_MAPE(X_train, y_train, epsilon=0.01, c=10)
+w_Ereg, b_Ereg = SVR_E(X_train[:200], y_train[:200], epsilon=0.01, c=10)
+# w_mape, b_mape = SVR_E_MAPE(X_train, y_train, epsilon=0.01, c=10)
+
 
 random.seed(1)
 n = 20
