@@ -83,11 +83,11 @@ def SVR_E_MAPE(X,y,epsilon=0.01,c=10):
     alphas = alpha1 - alpha2
     indx = abs(alphas) > umbral
     alpha_sv = alphas[indx]
-    x_sv = X[indx[:, 0], :]
+    x_sv = X[indx[:, 0]]
     y_sv = y[indx[:, 0]]
     
     
-    w = sum(transpose(tile(alpha_sv, (2, 1))) * x_sv, axis=0)
+    w = sum(transpose(tile(alpha_sv, (nfeatures, 1))) * x_sv, axis=0)
     b = mean(y_sv - dot(x_sv, w))
     
     return w, b
@@ -120,7 +120,7 @@ def SVR_vE(X, y, epsilon=0.01, c=10, v=1):
     alphas = alpha1 - alpha2
     indx = abs(alphas) > umbral
     alpha_sv = alphas[indx]
-    x_sv = X[indx[:, 0], :]
+    x_sv = X[indx[:, 0]]
     y_sv = y[indx[:, 0]]
     
     
@@ -156,7 +156,7 @@ def SVR_vMAPE(X,y,epsilon=0.01,c=10,v=1):
     alphas = alpha1 - alpha2
     indx = abs(alphas) > umbral
     alpha_sv = alphas[indx]
-    x_sv = X[indx[:, 0], :]
+    x_sv = X[indx[:, 0]]
     y_sv = y[indx[:, 0]]
     
     w = sum(transpose(tile(alpha_sv, (nfeatures, 1))) * x_sv, axis=0)
@@ -390,24 +390,8 @@ X = kron(n)
 y = ravel(consumo)
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=n, shuffle=False)
 
-w_Ereg, b_Ereg = SVR_E(X_train[:200], y_train[:200], epsilon=0.01, c=10)
-y_Ereg = dot(X_train[:200], w_Ereg) + b_Ereg
-rmse_ereg = mean_squared_error(y_train[:200], y_Ereg)
-
-
-
-
-random.seed(1)
-n = 20
-x1 = linspace(1, 20, n)
-x2 = linspace(1, 20, n)
-X1, X2 = meshgrid(x1, x2)
-Y = 2 * X1 + 3 * X2 + 40 + (5 * random.rand(X1.shape[0], X1.shape[0]) - 2.5)
-
-x1m = ravel(X1.T)
-x2m = ravel(X2.T)
-Xm = c_[x1m, x2m]
-y = ravel(Y.T)
+Xm = X_train[:200]
+y = y_train[:200]
 
 w_Ereg, b_Ereg = SVR_E(Xm, y, epsilon=0.01, c=10)
 y_Ereg = dot(Xm, w_Ereg) + b_Ereg
@@ -427,11 +411,11 @@ rmse_mape, mape_mape = mean_squared_error(y, y_mape), mean_absolute_percentage_e
 rmse_vE, mape_vE = mean_squared_error(y, y_vE), mean_absolute_percentage_error(y, y_vE)
 rmse_vmape, mape_vmape = mean_squared_error(y, y_vmape), mean_absolute_percentage_error(y, y_vmape)
 
-print('\n\n\t\t\t RMSE\t\t MAPE\n \
+print('\n\n\t\t\t\t\t RMSE\t\t MAPE\n \
         Formulation Ereg\t %0.4f\t\t %0.4f\n \
         Formulation Emape\t %0.4f\t\t %0.4f\n \
         Formulation vE\t\t %0.4f\t\t %0.4f\n \
-        Formulation vmape\t %0.4f\t %0.4f'%(
+        Formulation vmape\t %0.4f\t\t %0.4f'%(
             rmse_ereg, mape_ereg,
             rmse_mape, mape_mape,
             rmse_vE, mape_vE,
