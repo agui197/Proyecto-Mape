@@ -19,7 +19,7 @@ def mean_absolute_percentage_error(y_true,y_pred):
 
 #%% Generacion de los datos
 np.random.seed(1)
-n = 20
+n = 29
 x1 = np.linspace(1,20,n)
 x2 = np.linspace(1,20,n)
 X1,X2 = np.meshgrid(x1,x2)
@@ -97,7 +97,7 @@ plt.show()
 
 
 ######################################
-#%% Optimization MAPE usando cvxpy
+#%% Optimization E-MAPE usando cvxpy
 epsilon = 0.01 # margin max
 c = 10 # alphas constraint
 onev = np.ones((nsamples,1))
@@ -114,7 +114,112 @@ objective = cp.Minimize((1/2)*cp.quad_form(alpha1-alpha2, K) + Ev.T @ (alpha1+al
 # Restricciones forma matricial
 G = np.float64(np.concatenate((np.identity(nsamples),-np.identity(nsamples))))
 h=np.float64(np.concatenate((c/np.reshape(y,(nsamples,1)),np.zeros((nsamples,1)))))
-constraints = [onev.T @ (alpha1-alpha2) == 0, G @ alpha1 <= h, G @ alpha2 <= h]
+constraints = [onev.T @ (alpha1-alpha2) == 0,
+               G @ alpha1 <= h,
+               G @ alpha2 <= h]
+
+# The optimal objective value is returned by `prob.solve()`.
+prob = cp.Problem(objective,constraints)
+result = prob.solve()
+
+
+alpha1 = np.array(alpha1.value)
+alpha2 = np.array(alpha2.value)
+alphas = alpha1-alpha2
+indx = abs(alphas) > error
+alpha_sv = alphas[indx]
+x_sv = Xm[indx[:,0],:]
+y_sv = y[indx[:,0]]
+
+
+w_mape = np.sum(np.c_[alpha_sv,alpha_sv]*x_sv,axis=0)
+b_mape = np.mean(y_sv-np.dot(x_sv,w_mape))
+
+print('w_mape=[%0.3f,%0.3f]'%(w_mape[0],w_mape[1]))
+print('b_mape=%0.3f'%b_mape)
+
+#% Visualizar los resultados
+y_mape = w_mape[0]*x1m+w_mape[1]*x2m+b_mape
+
+fig = plt.figure()
+ax = fig.add_subplot(111, projection='3d')
+ax.scatter(x1m, x2m, y, c=y,s=5)
+ax.scatter(x1m, x2m, y_mape, c='r',s=10)
+ax.view_init(30, 0)
+plt.show()
+
+#%% Optimization classic v-formulation. E-regression usando cvxpy
+epsilon = 0.01 # margin max
+v = 1 # New term
+c = 10 # alphas constraint
+onev = np.ones((nsamples,1))
+error = 1E-5 # vector support 
+
+alpha1 = cp.Variable((nsamples,1))
+alpha2 = cp.Variable((nsamples,1))
+
+#% Forma Original
+objective = cp.Minimize((1/2)*cp.quad_form(alpha1-alpha2, K) - y.T @ (alpha1 - alpha2))
+
+# Restricciones forma matricial
+G = np.float64(np.concatenate((np.identity(nsamples),-np.identity(nsamples))))
+h = np.float64(np.concatenate((c*np.ones((nsamples,1)),np.zeros((nsamples,1)))))
+
+constraints = [onev.T @ (alpha1-alpha2) == 0,
+               onev.T @ (alpha1+alpha2) == c*v,
+               G @ alpha1 <= h,
+               G @ alpha2 <= h]
+
+# The optimal objective value is returned by `prob.solve()`.
+prob = cp.Problem(objective,constraints)
+result = prob.solve()
+
+alpha1 = np.array(alpha1.value)
+alpha2 = np.array(alpha2.value)
+alphas = alpha1-alpha2
+indx = abs(alphas) > error
+alpha_sv = alphas[indx]
+x_sv = Xm[indx[:,0],:]
+y_sv = y[indx[:,0]]
+
+
+w_Ereg = np.sum(np.c_[alpha_sv,alpha_sv]*x_sv,axis=0)
+b_Ereg = np.mean(y_sv-np.dot(x_sv,w_Ereg))
+
+print('w_Ereg=[%0.3f,%0.3f]'%(w_Ereg[0],w_Ereg[1]))
+print('b_Ereg=%0.3f'%b_Ereg)
+
+#% Visualizar los resultados
+y_Ereg = w_Ereg[0]*x1m+w_Ereg[1]*x2m+b_Ereg
+
+fig = plt.figure()
+ax = fig.add_subplot(111, projection='3d')
+ax.scatter(x1m, x2m, y, c=y,s=5)
+ax.scatter(x1m, x2m, y_Ereg, c='r',s=10)
+ax.view_init(30, 0)
+plt.show()
+
+#%% Optimization v-formulation E-MAPE usando cvxpy
+epsilon = 0.01 # margin max
+c = 10 # alphas constraint
+v = 1 # New term
+onev = np.ones((nsamples,1))
+
+error = 1E-5 # vector support 
+
+alpha1 = cp.Variable((nsamples,1))
+alpha2 = cp.Variable((nsamples,1))
+
+#% Forma MAPE
+objective = cp.Minimize((1/2)*cp.quad_form(alpha1-alpha2, K) - y.T @ (alpha1 - alpha2))
+
+# Restricciones forma matricial
+G = np.float64(np.concatenate((np.identity(nsamples),-np.identity(nsamples))))
+h=np.float64(np.concatenate((c/np.reshape(y,(nsamples,1)),np.zeros((nsamples,1)))))
+constraints = [onev.T @ (alpha1-alpha2) == 0,
+               y.T @ (alpha1+alpha2) == c*v,
+               G @ alpha1 <= h,
+               G @ alpha2 <= h]
 
 # The optimal objective value is returned by `prob.solve()`.
 prob = cp.Problem(objective,constraints)
