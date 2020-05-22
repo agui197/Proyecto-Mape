@@ -18,7 +18,6 @@ def mean_absolute_percentage_error(y_true, y_pred):
 
 
 def SVR_E(X, y, epsilon=0.01, c=10):
-    print(shape(X),shape(y))
     umbral = 1E-5 
     
     nsamples, nfeatures = shape(X)
@@ -411,18 +410,29 @@ Xm = c_[x1m, x2m]
 y = ravel(Y.T)
 
 w_Ereg, b_Ereg = SVR_E(Xm, y, epsilon=0.01, c=10)
-
-y_Ereg = w_Ereg[0] * x1m + w_Ereg[1] * x2m + b_Ereg
+y_Ereg = dot(Xm, w_Ereg) + b_Ereg
 
 w_mape, b_mape = SVR_E_MAPE(Xm, y, epsilon=0.01, c=10)
+y_mape = dot(Xm, w_mape) + b_mape
 
-y_mape = w_mape[0] * x1m + w_mape[1] * x2m + b_mape
+w_vE, b_vE = SVR_vE(Xm, y, epsilon=0.01, c=10, v=1)
+y_vE = dot(Xm, w_vE) + b_vE
 
-rmse1, mape1 = mean_squared_error(y, y_Ereg), mean_absolute_percentage_error(y, y_Ereg)
-rmse2, mape2 = mean_squared_error(y, y_mape), mean_absolute_percentage_error(y, y_mape)
+w_vmape, b_vmape = SVR_vMAPE(Xm, y, epsilon=0.01, c=10, v=1)
+y_vmape = dot(Xm, w_vmape) + b_vmape
 
-print('\n\n\t Obj E_reg\t Obj MAPE\n RMSE\t %0.4f\t\t %0.4f\n MAPE\t %0.4f\t\t %0.4f'%(
-        rmse1,
-        rmse2,
-        mape1,
-        mape2))
+rmse_ereg, mape_ereg = mean_squared_error(y, y_Ereg), mean_absolute_percentage_error(y, y_Ereg)
+rmse_mape, mape_mape = mean_squared_error(y, y_mape), mean_absolute_percentage_error(y, y_mape)
+
+rmse_vE, mape_vE = mean_squared_error(y, y_vE), mean_absolute_percentage_error(y, y_vE)
+rmse_vmape, mape_vmape = mean_squared_error(y, y_vmape), mean_absolute_percentage_error(y, y_vmape)
+
+print('\n\n\t\t\t RMSE\t\t MAPE\n \
+        Formulation Ereg\t %0.4f\t\t %0.4f\n \
+        Formulation Emape\t %0.4f\t\t %0.4f\n \
+        Formulation vE\t\t %0.4f\t\t %0.4f\n \
+        Formulation vmape\t %0.4f\t %0.4f'%(
+            rmse_ereg, mape_ereg,
+            rmse_mape, mape_mape,
+            rmse_vE, mape_vE,
+            rmse_vmape, mape_vmape))
