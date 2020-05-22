@@ -19,7 +19,7 @@ def mean_absolute_percentage_error(y_true,y_pred):
 
 #%% Generacion de los datos
 np.random.seed(1)
-n = 20
+n = 29
 x1 = np.linspace(1,20,n)
 x2 = np.linspace(1,20,n)
 X1,X2 = np.meshgrid(x1,x2)

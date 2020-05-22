@@ -88,9 +88,11 @@ def SVR_E(X,y,epsilon=0.01,c=10):
 #%% Aplicar la regresion epsilon
 w_Ereg,b_Ereg = SVR_E(Xm,y,epsilon=0.01,c=10)
 
-#% Visualizar los resultados
-y_Ereg = w_Ereg[0]*x1m+w_Ereg[1]*x2m+b_Ereg
+#% Simular el modelo
+y_Ereg = np.dot(Xm,w_Ereg)+b_Ereg
 
+
+#% Visualizar los resultados
 fig = plt.figure()
 ax = fig.add_subplot(111, projection='3d')
 ax.scatter(x1m, x2m, y, c=y,s=5)
@@ -154,9 +156,11 @@ def SVR_E_MAPE(X,y,epsilon=0.01,c=10):
 
 #%% Aplicar la regresion epsilon MAPE
 w_mape,b_mape = SVR_E_MAPE(Xm,y,epsilon=0.01,c=10)
-#% Visualizar los resultados
-y_mape = w_mape[0]*x1m+w_mape[1]*x2m+b_mape
 
+#% Simular el modelo
+y_mape = np.dot(Xm,w_mape)+b_mape
+
+#% Visualizar los resultados
 fig = plt.figure()
 ax = fig.add_subplot(111, projection='3d')
 ax.scatter(x1m, x2m, y, c=y,s=5)
@@ -217,9 +221,11 @@ def SVR_vE(X,y,epsilon=0.01,c=10,v=1):
 
 #%% Aplicar la regresion epsilon con formulacion v
 w_vE,b_vE = SVR_vE(Xm,y,epsilon=0.01,c=10,v=1)
-#% Visualizar los resultados
-y_vE = w_vE[0]*x1m+w_vE[1]*x2m+b_vE
 
+#% Simular el modelo
+y_vE = np.dot(Xm,w_vE)+b_vE
+
+#% Visualizar los resultados
 fig = plt.figure()
 ax = fig.add_subplot(111, projection='3d')
 ax.scatter(x1m, x2m, y, c=y,s=5)
@@ -279,9 +285,11 @@ def SVR_vMAPE(X,y,epsilon=0.01,c=10,v=1):
 
 #%% Aplicar la regresion epsilon con formulacion v
 w_vmape,b_vmape = SVR_vMAPE(Xm,y,epsilon=0.01,c=10,v=1)
-#% Visualizar los resultados
-y_vmape = w_vmape[0]*x1m+w_vmape[1]*x2m+b_vmape
 
+#% Simular el modelo
+y_vmape = np.dot(Xm,w_vmape)+b_vmape
+
+#% Visualizar los resultados
 fig = plt.figure()
 ax = fig.add_subplot(111, projection='3d')
 ax.scatter(x1m, x2m, y, c=y,s=5)
