@@ -93,6 +93,78 @@ def SVR_E_MAPE(X,y,epsilon=0.01,c=10):
     
     return w, b
 
+def SVR_vE(X, y, epsilon=0.01, c=10, v=1):
+    umbral = 1E-5 
+    nsamples, nfeatures = shape(X)
+    onev = ones((nsamples, 1))
+    
+    K = linear_kernel(X, X)
+    
+    alpha1 = Variable((nsamples, 1))
+    alpha2 = Variable((nsamples, 1))
+    
+    objective = Minimize((1/2) * quad_form(alpha1 - alpha2, K) - y.T @ (alpha1 - alpha2))
+    
+    G = float64(concatenate((identity(nsamples), -identity(nsamples))))
+    h = float64(concatenate((c * ones((nsamples, 1)), zeros((nsamples, 1)))))
+    
+    constraints = [onev.T @ (alpha1-alpha2) == 0,
+                   onev.T @ (alpha1+alpha2) == c * v,
+                   G @ alpha1 <= h,
+                   G @ alpha2 <= h]
+    
+    prob = Problem(objective, constraints)
+    result = prob.solve()
+    
+    alpha1 = array(alpha1.value)
+    alpha2 = array(alpha2.value)
+    alphas = alpha1 - alpha2
+    indx = abs(alphas) > umbral
+    alpha_sv = alphas[indx]
+    x_sv = X[indx[:, 0], :]
+    y_sv = y[indx[:, 0]]
+    
+    
+    w = sum(transpose(tile(alpha_sv, (nfeatures, 1))) * x_sv, axis=0)
+    b = mean(y_sv - dot(x_sv, w))
+    
+    return w, b
+
+def SVR_vMAPE(X,y,epsilon=0.01,c=10,v=1):
+    umbral = 1E-5
+    nsamples, nfeatures = shape(X)
+    onev = ones((nsamples, 1))
+    
+    K = linear_kernel(X, X)
+    
+    alpha1 = Variable((nsamples, 1))
+    alpha2 = Variable((nsamples, 1))
+    
+    objective = Minimize((1/2) * quad_form(alpha1 - alpha2, K) - y.T @ (alpha1 - alpha2))
+    
+    G = float64(concatenate((identity(nsamples), -identity(nsamples))))
+    h = float64(concatenate((c / reshape(y, (nsamples, 1)), zeros((nsamples, 1)))))
+    constraints = [onev.T @ (alpha1-alpha2) == 0,
+                   y.T @ (alpha1+alpha2) == c * v,
+                   G @ alpha1 <= h,
+                   G @ alpha2 <= h]
+    
+    prob = Problem(objective, constraints)
+    result = prob.solve()
+    
+    alpha1 = array(alpha1.value)
+    alpha2 = array(alpha2.value)
+    alphas = alpha1 - alpha2
+    indx = abs(alphas) > umbral
+    alpha_sv = alphas[indx]
+    x_sv = X[indx[:, 0], :]
+    y_sv = y[indx[:, 0]]
+    
+    w = sum(transpose(tile(alpha_sv, (nfeatures, 1))) * x_sv, axis=0)
+    b = mean(y_sv - dot(x_sv, w))
+    
+    return w,b
+
 def cargar():
     consumofeb = read_excel('C:/Users/tripl/Downloads/EntregaFinal/Consumo_feb.xlsx').set_index("fecha").loc["2007-01-01":"2020-03-30"]
     consumofeb = consumofeb.drop(["prom", "Lluvia", "Velocidad_viento"], 1)
