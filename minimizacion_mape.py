@@ -390,8 +390,12 @@ modclima = modelosclima(c)
 X = kron(n)
 y = ravel(consumo)
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=n, shuffle=False)
+
 w_Ereg, b_Ereg = SVR_E(X_train[:200], y_train[:200], epsilon=0.01, c=10)
-# w_mape, b_mape = SVR_E_MAPE(X_train, y_train, epsilon=0.01, c=10)
+y_Ereg = dot(X_train[:200], w_Ereg) + b_Ereg
+rmse_ereg = mean_squared_error(y_train[:200], y_Ereg)
+
+
 
 
 random.seed(1)
