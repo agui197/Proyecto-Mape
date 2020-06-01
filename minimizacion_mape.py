@@ -1,6 +1,6 @@
 from numpy import mean, abs, shape, ones, float64, concatenate, identity, zeros, array, \
     sum, transpose, mean, tile, dot, reshape, random, linspace, meshgrid, ravel, c_, \
-        arange, sin, cos, pi
+        arange, sin, cos, pi, argmin, sqrt
 from pandas import DataFrame, get_dummies, read_excel, concat
 from scipy.ndimage.interpolation import shift
 from scipy import signal
@@ -382,6 +382,99 @@ def kron(n):
     combination = kronecker(X, sencos)
     return combination.join(modclima)
 
+def f(x, i):
+    epsilon, c, v = x[0], x[1], x[2]
+
+    if i == 0:
+        try:
+            w_mape, b_mape = SVR_E_MAPE(Xm, y, epsilon=epsilon, c=c)
+            y_mape = dot(Xm, w_mape) + b_mape
+
+            rmse_mape, mape_mape = mean_squared_error(y, y_mape), mean_absolute_percentage_error(y, y_mape)
+            
+        except: 
+            mape_mape = 100000
+        print(mape_mape)
+        print(x)
+        return mape_mape
+    elif i == 1:
+        try:
+            w_vmape, b_vmape = SVR_vMAPE(Xm, y, epsilon=epsilon, c=c, v=v)
+            y_vmape = dot(Xm, w_vmape) + b_vmape
+
+            rmse_vmape, mape_vmape = mean_squared_error(y, y_vmape), mean_absolute_percentage_error(y, y_vmape)
+            
+        except: 
+            mape_vmape = 100000
+        print(mape_vmape)
+        print(x)
+        return mape_vmape
+    elif i == 2:
+        try:
+            w_Ereg, b_Ereg = SVR_E(Xm, y, epsilon=epsilon, c=c)
+            y_Ereg = dot(Xm, w_Ereg) + b_Ereg
+
+            rmse_ereg, mape_ereg = mean_squared_error(y, y_Ereg), mean_absolute_percentage_error(y, y_Ereg)
+        except:
+            mape_ereg = 100000
+
+        print(mape_ereg)
+        print(x)
+        return mape_ereg
+    else:
+        try:
+            w_vE, b_vE = SVR_vE(Xm, y, epsilon=epsilon, c=c, v=v)
+            y_vE = dot(Xm, w_vE) + b_vE
+
+            rmse_vE, mape_vE = mean_squared_error(y, y_vE), mean_absolute_percentage_error(y, y_vE)
+            
+        except:
+            mape_vE = 100000
+        print(mape_vE)
+        print(x)
+        return mape_vE
+
+
+def pso(np, iterations, formulation):
+    x1p = reshape([random.uniform(0, .01, np), random.randint(1, 100, np), random.randint(1, 10, np)], (3,np)).T
+
+    x1pg = [.01, 10, 1]
+
+    vx1 = x1p
+    x1pL = x1p
+
+    fxpg = 1000000
+    fxpL = ones([np, 1]) * fxpg
+
+    c1 = .3
+    c2 = .3
+
+    for i in range(iterations):
+        fx = ones([np, 1])
+        a = 1000
+        
+        for variables, j in zip(x1p, range(np)):
+            print(i, j)
+            fx[j] = f(variables, formulation)
+            
+        ind = argmin(fx)
+        val = fx[ind]
+        print('previous global ', fxpg, 'val ',val)
+        if val < fxpg:
+            x1pg = x1p[ind]
+            fxpg = val
+        
+        for p in range(np):
+            if fx[p] < fxpL[p]:
+                x1pL[p] = x1p[p]
+
+        for p in range(np):
+            vx1[p] = vx1[p] \
+                + c1 * array([random.uniform(0,.01), random.randint(1,100), random.randint(1,10)]) * (x1pg - x1p[p]) \
+                + c2 * array([random.uniform(0,.01), random.randint(1,100), random.randint(1,10)]) * (x1pL[p] - x1p[p])
+    
+    return x1pg[0], x1pg[1], x1pg[2]
+
 n = 7
 c = 7
 consumo, consumofeb = cargar()
@@ -392,17 +485,23 @@ X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=n, shuffle=F
 
 Xm = X_train[:200]
 y = y_train[:200]
+np = 20
+iterations = 10
 
-w_Ereg, b_Ereg = SVR_E(Xm, y, epsilon=0.01, c=10)
+epsilon, c, v = pso(np, iterations, 2)
+w_Ereg, b_Ereg = SVR_E(Xm, y, epsilon=epsilon, c=c)
 y_Ereg = dot(Xm, w_Ereg) + b_Ereg
 
-w_mape, b_mape = SVR_E_MAPE(Xm, y, epsilon=0.01, c=10)
+epsilon, c, v = pso(np, iterations, 0)
+w_mape, b_mape = SVR_E_MAPE(Xm, y, epsilon=epsilon, c=c)
 y_mape = dot(Xm, w_mape) + b_mape
 
-w_vE, b_vE = SVR_vE(Xm, y, epsilon=0.01, c=10, v=1)
+epsilon, c, v = pso(np, iterations, 3)
+w_vE, b_vE = SVR_vE(Xm, y, epsilon=epsilon, c=c, v=v)
 y_vE = dot(Xm, w_vE) + b_vE
 
-w_vmape, b_vmape = SVR_vMAPE(Xm, y, epsilon=0.01, c=10, v=1)
+epsilon, c, v = pso(np, iterations, 1)
+w_vmape, b_vmape = SVR_vMAPE(Xm, y, epsilon=epsilon, c=c, v=v)
 y_vmape = dot(Xm, w_vmape) + b_vmape
 
 rmse_ereg, mape_ereg = mean_squared_error(y, y_Ereg), mean_absolute_percentage_error(y, y_Ereg)
@@ -416,7 +515,17 @@ print('\n\n\t\t\t\t\t RMSE\t\t MAPE\n \
         Formulation Emape\t %0.4f\t\t %0.4f\n \
         Formulation vE\t\t %0.4f\t\t %0.4f\n \
         Formulation vmape\t %0.4f\t\t %0.4f'%(
-            rmse_ereg, mape_ereg,
-            rmse_mape, mape_mape,
-            rmse_vE, mape_vE,
-            rmse_vmape, mape_vmape))
+            sqrt(rmse_ereg), mape_ereg,
+            sqrt(rmse_mape), mape_mape,
+            sqrt(rmse_vE), mape_vE,
+            sqrt(rmse_vmape), mape_vmape))
+
+
+# parametros para SVR_E_MAPE 
+# [4.66583963e-03 1.43430000e+03 5.00000000e+00]
+# vals 7.428252861100537 3.904168124558429
+
+# parametros para SVR_V_MAPE
+# [6.83854074e-03 9.45280000e+03 9.64000000e+00]
+# vals 121.0116911481692 5.617066617864312
+
