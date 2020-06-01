@@ -19,7 +19,7 @@ def mean_absolute_percentage_error(y_true,y_pred):
 
 #%% Generacion de los datos
 np.random.seed(1)
-n = 20
+n = 29
 x1 = np.linspace(1,20,n)
 x2 = np.linspace(1,20,n)
 X1,X2 = np.meshgrid(x1,x2)
@@ -254,9 +254,10 @@ def SVR_vMAPE(X,y,epsilon=0.01,c=10,v=1):
     
     # Restricciones forma matricial
     G = np.float64(np.concatenate((np.identity(nsamples),-np.identity(nsamples))))
-    h=np.float64(np.concatenate((c/np.reshape(y,(nsamples,1)),np.zeros((nsamples,1)))))
+#    h=np.float64(np.concatenate((c/np.reshape(y,(nsamples,1)),np.zeros((nsamples,1)))))
+    h=np.float64(np.concatenate((100*c/np.reshape(y,(nsamples,1)),np.zeros((nsamples,1)))))
     constraints = [onev.T @ (alpha1-alpha2) == 0,
-                   y.T @ (alpha1+alpha2) == c*v,
+                   (y/100).T @ (alpha1+alpha2) == c*v,
                    G @ alpha1 <= h,
                    G @ alpha2 <= h]
     
