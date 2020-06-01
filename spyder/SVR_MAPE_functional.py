@@ -19,7 +19,7 @@ def mean_absolute_percentage_error(y_true,y_pred):
 
 #%% Generacion de los datos
 np.random.seed(1)
-n = 20
+n = 29
 x1 = np.linspace(1,20,n)
 x2 = np.linspace(1,20,n)
 X1,X2 = np.meshgrid(x1,x2)
@@ -254,9 +254,10 @@ def SVR_vMAPE(X,y,epsilon=0.01,c=10,v=1):
     
     # Restricciones forma matricial
     G = np.float64(np.concatenate((np.identity(nsamples),-np.identity(nsamples))))
-    h=np.float64(np.concatenate((c/np.reshape(y,(nsamples,1)),np.zeros((nsamples,1)))))
+#    h=np.float64(np.concatenate((c/np.reshape(y,(nsamples,1)),np.zeros((nsamples,1)))))
+    h=np.float64(np.concatenate((100*c/np.reshape(y,(nsamples,1)),np.zeros((nsamples,1)))))
     constraints = [onev.T @ (alpha1-alpha2) == 0,
-                   y.T @ (alpha1+alpha2) == c*v,
+                   (y/100).T @ (alpha1+alpha2) == c*v,
                    G @ alpha1 <= h,
                    G @ alpha2 <= h]
     
@@ -298,6 +299,10 @@ ax.view_init(30, 0)
 plt.show()
 
 #%% Evaluacion de ambas implementaciones
-rmse1,mape1 = mean_squared_error(y,y_Ereg),mean_absolute_percentage_error(y,y_Ereg)
-rmse2,mape2 = mean_squared_error(y,y_mape),mean_absolute_percentage_error(y,y_mape)
-print('\n\n\t Obj E_reg\t Obj MAPE\n RMSE\t %0.4f\t\t %0.4f\n MAPE\t %0.4f\t\t %0.4f'%(rmse1,rmse2,mape1,mape2))
+rmse_ereg,mape_ereg = mean_squared_error(y,y_Ereg),mean_absolute_percentage_error(y,y_Ereg)
+rmse_mape,mape_mape = mean_squared_error(y,y_mape),mean_absolute_percentage_error(y,y_mape)
+rmse_vE,mape_vE = mean_squared_error(y,y_vE),mean_absolute_percentage_error(y,y_vE)
+rmse_vmape,mape_vmape = mean_squared_error(y,y_vmape),mean_absolute_percentage_error(y,y_vmape)
+
+#%%
+print('\n\n\t\t\t RMSE\t\t MAPE\n Formulation Ereg\t %0.4f\t\t %0.4f\n Formulation Emape\t %0.4f\t\t %0.4f\n Formulation vE\t\t %0.4f\t\t %0.4f\n Formulation vmape\t %0.4f\t %0.4f'%(rmse_ereg,mape_ereg,rmse_mape,mape_mape,rmse_vE,mape_vE,rmse_vmape,mape_vmape))

@@ -215,9 +215,10 @@ objective = cp.Minimize((1/2)*cp.quad_form(alpha1-alpha2, K) - y.T @ (alpha1 - a
 
 # Restricciones forma matricial
 G = np.float64(np.concatenate((np.identity(nsamples),-np.identity(nsamples))))
-h=np.float64(np.concatenate((c/np.reshape(y,(nsamples,1)),np.zeros((nsamples,1)))))
+#h=np.float64(np.concatenate((c/np.reshape(y,(nsamples,1)),np.zeros((nsamples,1)))))
+h=np.float64(np.concatenate(((100*c)/np.reshape(y,(nsamples,1)),np.zeros((nsamples,1)))))
 constraints = [onev.T @ (alpha1-alpha2) == 0,
-               y.T @ (alpha1+alpha2) == c*v,
+               (y/100).T @ (alpha1+alpha2) == c*v,
                G @ alpha1 <= h,
                G @ alpha2 <= h]
 
