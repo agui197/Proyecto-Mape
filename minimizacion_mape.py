@@ -142,9 +142,9 @@ def SVR_vMAPE(X,y,epsilon=0.01,c=10,v=1):
     objective = Minimize((1/2) * quad_form(alpha1 - alpha2, K) - y.T @ (alpha1 - alpha2))
     
     G = float64(concatenate((identity(nsamples), -identity(nsamples))))
-    h = float64(concatenate((c / reshape(y, (nsamples, 1)), zeros((nsamples, 1)))))
+    h = float64(concatenate((100 * c / reshape(y, (nsamples, 1)), zeros((nsamples, 1)))))
     constraints = [onev.T @ (alpha1-alpha2) == 0,
-                   y.T @ (alpha1+alpha2) == c * v,
+                   (y / 100).T @ (alpha1+alpha2) == c * v,
                    G @ alpha1 <= h,
                    G @ alpha2 <= h]
     
@@ -437,6 +437,15 @@ def f(x, i):
 
 def pso(np, iterations, formulation):
     x1p = reshape([random.uniform(0, .01, np), random.randint(1, 100, np), random.randint(1, 10, np)], (3,np)).T
+    
+    if formulation == 0:
+        x1p[0] = [0.005371852, 29836008.08, 2.55952]
+    elif formulation == 1:
+        x1p[0] = [0.005530169, 359906.908, 7.558]
+    elif formulation == 2:
+        x1p[0] = [0.009445345, 701, 4.6]
+    else:
+        x1p[0] = [0.002321687, 2904.54, 7.2]
 
     x1pg = [.01, 10, 1]
 
@@ -485,23 +494,26 @@ X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=n, shuffle=F
 
 Xm = X_train[:200]
 y = y_train[:200]
-np = 20
-iterations = 10
+np = 25
+iterations = 7
+
+X_test = X_train[200:207]
+y_test = y_train[200:207]
 
 epsilon, c, v = pso(np, iterations, 2)
 w_Ereg, b_Ereg = SVR_E(Xm, y, epsilon=epsilon, c=c)
 y_Ereg = dot(Xm, w_Ereg) + b_Ereg
 
-epsilon, c, v = pso(np, iterations, 0)
-w_mape, b_mape = SVR_E_MAPE(Xm, y, epsilon=epsilon, c=c)
+epsilon1, c1, v1 = pso(np, iterations, 0)
+w_mape, b_mape = SVR_E_MAPE(Xm, y, epsilon=epsilon1, c=c1)
 y_mape = dot(Xm, w_mape) + b_mape
 
-epsilon, c, v = pso(np, iterations, 3)
-w_vE, b_vE = SVR_vE(Xm, y, epsilon=epsilon, c=c, v=v)
+epsilon2, c2, v2 = pso(np, iterations, 3)
+w_vE, b_vE = SVR_vE(Xm, y, epsilon=epsilon2, c=c2, v=v2)
 y_vE = dot(Xm, w_vE) + b_vE
 
-epsilon, c, v = pso(np, iterations, 1)
-w_vmape, b_vmape = SVR_vMAPE(Xm, y, epsilon=epsilon, c=c, v=v)
+epsilon3, c3, v3 = pso(np, iterations, 1)
+w_vmape, b_vmape = SVR_vMAPE(Xm, y, epsilon=epsilon3, c=c3, v=v3)
 y_vmape = dot(Xm, w_vmape) + b_vmape
 
 rmse_ereg, mape_ereg = mean_squared_error(y, y_Ereg), mean_absolute_percentage_error(y, y_Ereg)
@@ -509,6 +521,19 @@ rmse_mape, mape_mape = mean_squared_error(y, y_mape), mean_absolute_percentage_e
 
 rmse_vE, mape_vE = mean_squared_error(y, y_vE), mean_absolute_percentage_error(y, y_vE)
 rmse_vmape, mape_vmape = mean_squared_error(y, y_vmape), mean_absolute_percentage_error(y, y_vmape)
+
+results = DataFrame([[sqrt(rmse_ereg), mape_ereg], 
+                     [sqrt(rmse_mape), mape_mape], 
+                     [sqrt(rmse_vE), mape_vE], 
+                     [sqrt(rmse_vmape), mape_vmape]])
+
+hiperparams = DataFrame([[epsilon, c, v],
+                         [epsilon1, c1, v1],
+                         [epsilon2, c2, v2],
+                         [epsilon3, c3, v3]])
+
+results.to_csv('results_train.csv')
+hiperparams.to_csv('hiperparams.csv')
 
 print('\n\n\t\t\t\t\t RMSE\t\t MAPE\n \
         Formulation Ereg\t %0.4f\t\t %0.4f\n \
@@ -520,12 +545,38 @@ print('\n\n\t\t\t\t\t RMSE\t\t MAPE\n \
             sqrt(rmse_vE), mape_vE,
             sqrt(rmse_vmape), mape_vmape))
 
+y_EregR = dot(X_test, w_Ereg) + b_Ereg
+y_mapeR = dot(X_test, w_mape) + b_mape
+y_vER = dot(X_test, w_vE) + b_vE
+y_vmapeR = dot(X_test, w_vmape) + b_vmape
 
-# parametros para SVR_E_MAPE 
-# [4.66583963e-03 1.43430000e+03 5.00000000e+00]
-# vals 7.428252861100537 3.904168124558429
+rmse_ereg, mape_ereg = mean_squared_error(y_test, y_EregR), mean_absolute_percentage_error(y_test, y_EregR)
+rmse_mape, mape_mape = mean_squared_error(y_test, y_mapeR), mean_absolute_percentage_error(y_test, y_mapeR)
 
-# parametros para SVR_V_MAPE
-# [6.83854074e-03 9.45280000e+03 9.64000000e+00]
-# vals 121.0116911481692 5.617066617864312
+rmse_vE, mape_vE = mean_squared_error(y_test, y_vER), mean_absolute_percentage_error(y_test, y_vER)
+rmse_vmape, mape_vmape = mean_squared_error(y_test, y_vmapeR), mean_absolute_percentage_error(y_test, y_vmapeR)
 
+print('\n\n\t\t\t\t\t RMSE\t\t MAPE\n \
+        Formulation Ereg\t %0.4f\t\t %0.4f\n \
+        Formulation Emape\t %0.4f\t\t %0.4f\n \
+        Formulation vE\t\t %0.4f\t\t %0.4f\n \
+        Formulation vmape\t %0.4f\t\t %0.4f'%(
+            sqrt(rmse_ereg), mape_ereg,
+            sqrt(rmse_mape), mape_mape,
+            sqrt(rmse_vE), mape_vE,
+            sqrt(rmse_vmape), mape_vmape))
+
+Xm.to_csv('X_train.csv')
+X_test.to_csv('X_test.csv')
+ydf = DataFrame(array([y, y_Ereg, y_mape, y_vE, y_vmape]).T)
+yRdf = DataFrame(array([y_test, y_EregR, y_mapeR, y_vER, y_vmapeR]).T)
+
+ydf.to_csv('y_train.csv')
+yRdf.to_csv('y_test.csv')
+
+results = DataFrame([[sqrt(rmse_ereg), mape_ereg], 
+                     [sqrt(rmse_mape), mape_mape], 
+                     [sqrt(rmse_vE), mape_vE], 
+                     [sqrt(rmse_vmape), mape_vmape]])
+
+results.to_csv('results_test.csv')
