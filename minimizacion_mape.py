@@ -17,13 +17,18 @@ def mean_absolute_percentage_error(y_true, y_pred):
     return mean(abs((y_true - y_pred) / y_true)) * 100
 
 
-def SVR_E(X, y, epsilon=0.01, c=10):
+def SVR_E(X, y, epsilon=0.01, c=10, kernel='linear', gamma=None, lck=1):
     umbral = 1E-5 
     
     nsamples, nfeatures = shape(X)
     onev = ones((nsamples, 1))
     
-    K = linear_kernel(X, X)
+    if kernel == 'linear':
+        K = linear_kernel(X, X)
+    elif kernel == 'rbf':
+        K = rbf_kernel(X, X, gamma=gamma)
+    elif kernel == 'linrbf':
+        K = linrbf_kernel(X, X, gamma=gamma, lck=lck)
 
     alpha1 = Variable((nsamples, 1))
     alpha2 = Variable((nsamples, 1))
@@ -55,13 +60,18 @@ def SVR_E(X, y, epsilon=0.01, c=10):
     
     return w, b
 
-def SVR_E_MAPE(X,y,epsilon=0.01,c=10):
+def SVR_E_MAPE(X, y, epsilon=0.01, c=10, kernel='linear', gamma=None, lck=1):
     umbral = 1E-5 
     
     nsamples, nfeatures = shape(X)
     onev = ones((nsamples, 1))
     
-    K = linear_kernel(X, X)
+    if kernel == 'linear':
+        K = linear_kernel(X, X)
+    elif kernel == 'rbf':
+        K = rbf_kernel(X, X, gamma=gamma)
+    elif kernel == 'linrbf':
+        K = linrbf_kernel(X, X, gamma=gamma, lck=lck)
     
     alpha1 = Variable((nsamples, 1))
     alpha2 = Variable((nsamples, 1))
@@ -92,12 +102,17 @@ def SVR_E_MAPE(X,y,epsilon=0.01,c=10):
     
     return w, b
 
-def SVR_vE(X, y, epsilon=0.01, c=10, v=1):
+def SVR_vE(X, y, epsilon=0.01, c=10, v=1, kernel='linear', gamma=None, lck=1):
     umbral = 1E-5 
     nsamples, nfeatures = shape(X)
     onev = ones((nsamples, 1))
     
-    K = linear_kernel(X, X)
+    if kernel == 'linear':
+        K = linear_kernel(X, X)
+    elif kernel == 'rbf':
+        K = rbf_kernel(X, X, gamma=gamma)
+    elif kernel == 'linrbf':
+        K = linrbf_kernel(X, X, gamma=gamma, lck=lck)
     
     alpha1 = Variable((nsamples, 1))
     alpha2 = Variable((nsamples, 1))
@@ -129,12 +144,17 @@ def SVR_vE(X, y, epsilon=0.01, c=10, v=1):
     
     return w, b
 
-def SVR_vMAPE(X,y,epsilon=0.01,c=10,v=1):
+def SVR_vMAPE(X, y, epsilon=0.01, c=10, v=1, kernel='linear', gamma=None, lck=1):
     umbral = 1E-5
     nsamples, nfeatures = shape(X)
     onev = ones((nsamples, 1))
     
-    K = linear_kernel(X, X)
+    if kernel == 'linear':
+        K = linear_kernel(X, X)
+    elif kernel == 'rbf':
+        K = rbf_kernel(X, X, gamma=gamma)
+    elif kernel == 'linrbf':
+        K = linrbf_kernel(X, X, gamma=gamma, lck=lck)
     
     alpha1 = Variable((nsamples, 1))
     alpha2 = Variable((nsamples, 1))
@@ -175,7 +195,7 @@ def cargar():
             break
         else: return consumo, consumofeb
 
-def kronecker(data1:'Dataframe 1',data2:'Dataframe 2'):
+def kronecker(data1:'Dataframe 1', data2:'Dataframe 2'):
     Combinacion = DataFrame()
     d1 = DataFrame()
 
@@ -503,20 +523,24 @@ iterations = 7
 X_test = X_train[200:207]
 y_test = y_train[200:207]
 
+kernel = 'linear'
+gamma = None
+lck = 1
+
 epsilon, c, v = pso(np, iterations, 2)
-w_Ereg, b_Ereg = SVR_E(Xm, y, epsilon=epsilon, c=c)
+w_Ereg, b_Ereg = SVR_E(Xm, y, epsilon=epsilon, c=c, kernel=kernel, gamma=gamma, lck=lck)
 y_Ereg = dot(Xm, w_Ereg) + b_Ereg
 
 epsilon1, c1, v1 = pso(np, iterations, 0)
-w_mape, b_mape = SVR_E_MAPE(Xm, y, epsilon=epsilon1, c=c1)
+w_mape, b_mape = SVR_E_MAPE(Xm, y, epsilon=epsilon1, c=c1, kernel=kernel, gamma=gamma, lck=lck)
 y_mape = dot(Xm, w_mape) + b_mape
 
 epsilon2, c2, v2 = pso(np, iterations, 3)
-w_vE, b_vE = SVR_vE(Xm, y, epsilon=epsilon2, c=c2, v=v2)
+w_vE, b_vE = SVR_vE(Xm, y, epsilon=epsilon2, c=c2, v=v2, kernel=kernel, gamma=gamma, lck=lck)
 y_vE = dot(Xm, w_vE) + b_vE
 
 epsilon3, c3, v3 = pso(np, iterations, 1)
-w_vmape, b_vmape = SVR_vMAPE(Xm, y, epsilon=epsilon3, c=c3, v=v3)
+w_vmape, b_vmape = SVR_vMAPE(Xm, y, epsilon=epsilon3, c=c3, v=v3, kernel=kernel, gamma=gamma, lck=lck)
 y_vmape = dot(Xm, w_vmape) + b_vmape
 
 rmse_ereg, mape_ereg = mean_squared_error(y, y_Ereg), mean_absolute_percentage_error(y, y_Ereg)
@@ -535,8 +559,8 @@ hiperparams = DataFrame([[epsilon, c, v],
                          [epsilon2, c2, v2],
                          [epsilon3, c3, v3]])
 
-results.to_csv('results_train.csv')
-hiperparams.to_csv('hiperparams.csv')
+results.to_csv('results_train_'+kernel+'.csv')
+hiperparams.to_csv('hiperparams_'+kernel+'.csv')
 
 print('\n\n\t\t\t\t\t RMSE\t\t MAPE\n \
         Formulation Ereg\t %0.4f\t\t %0.4f\n \
@@ -569,17 +593,17 @@ print('\n\n\t\t\t\t\t RMSE\t\t MAPE\n \
             sqrt(rmse_vE), mape_vE,
             sqrt(rmse_vmape), mape_vmape))
 
-Xm.to_csv('X_train.csv')
-X_test.to_csv('X_test.csv')
+Xm.to_csv('X_train_'+kernel+'.csv')
+X_test.to_csv('X_test_'+kernel+'.csv')
 ydf = DataFrame(array([y, y_Ereg, y_mape, y_vE, y_vmape]).T)
 yRdf = DataFrame(array([y_test, y_EregR, y_mapeR, y_vER, y_vmapeR]).T)
 
-ydf.to_csv('y_train.csv')
-yRdf.to_csv('y_test.csv')
+ydf.to_csv('y_train_'+kernel+'.csv')
+yRdf.to_csv('y_test_'+kernel+'.csv')
 
 results = DataFrame([[sqrt(rmse_ereg), mape_ereg], 
                      [sqrt(rmse_mape), mape_mape], 
                      [sqrt(rmse_vE), mape_vE], 
                      [sqrt(rmse_vmape), mape_vmape]])
 
-results.to_csv('results_test.csv')
+results.to_csv('results_test_'+kernel+'.csv')
