@@ -9,13 +9,17 @@ Created on Wed May  6 12:13:54 2020
 import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
-from sklearn.metrics.pairwise import linear_kernel
+from sklearn.metrics.pairwise import (linear_kernel,rbf_kernel)
 import cvxpy as cp #https://www.cvxpy.org/
 from sklearn.metrics import mean_squared_error
 
 #%% Funcion MAPE
 def mean_absolute_percentage_error(y_true,y_pred):
     return np.mean(np.abs((y_true - y_pred) / y_true)) * 100
+
+#%% Kernel linear-rbf linear combination
+def linrbf_kernel(X1,X2,gamma=None,lck=1):
+    return lck*linear_kernel(X1,X2)+(1-lck)*rbf_kernel(X1,X2,gamma=gamma)
 
 #%% Generacion de los datos
 np.random.seed(1)
@@ -38,26 +42,34 @@ ax.scatter(x1m, x2m, y, c=y)
 plt.show()
 
 #%% Funcion SVR_E
-def SVR_E(X,y,epsilon=0.01,c=10):
+def SVR_E(X,y,epsilon=0.01,c=10,kernel='linear',gamma=None,lck=1):
     # epsilon = 0.01 # margin max
     # c = 10 # alphas constraint
+    # kernel = 'linear' # kernel type, options: ('linear','rbf','linrbf')
+    # gamma = None # gamma parameter for rbf-kernel and linrbf-kernel
+    # lck = 1 # constant for kernel linear combination, 0<=lck<=1
+    
     umbral = 1E-5 # umbral to define a vector support
     
     nsamples,nfeatures = np.shape(X)
     onev = np.ones((nsamples,1))
     
     # Kernel matrix
-    K = linear_kernel(X,X)
+    if kernel == 'linear':
+        K = linear_kernel(X,X)
+    elif kernel == 'rbf':
+        K = rbf_kernel(X,X,gamma=gamma)
+    elif kernel == 'linrbf':
+        K = linrbf_kernel(X,X,gamma=gamma,lck=lck)
 
-    # Optimization E-regression usando cvxpy
+    # Optimization E-regression
     alpha1 = cp.Variable((nsamples,1))
     alpha2 = cp.Variable((nsamples,1))
     
-    #% Forma Original
     Ev = onev*epsilon
     objective = cp.Minimize((1/2)*cp.quad_form(alpha1-alpha2, K) + Ev.T @ (alpha1+alpha2) - y.T @ (alpha1 - alpha2))
     
-    # Restricciones forma matricial
+    # Constrains in matrix form
     G = np.float64(np.concatenate((np.identity(nsamples),-np.identity(nsamples))))
     h = np.float64(np.concatenate((c*np.ones((nsamples,1)),np.zeros((nsamples,1)))))
     
@@ -86,7 +98,18 @@ def SVR_E(X,y,epsilon=0.01,c=10):
     
     return w,b
 #%% Aplicar la regresion epsilon
-w_Ereg,b_Ereg = SVR_E(Xm,y,epsilon=0.01,c=10)
+# Parameters values
+#   epsilon default: 0.1, epsilon>0
+#   c default: 10, c>0
+#   kernel default: 'linear', other values ('rbf','linrbf')
+#   gamma default: None, other values gamma>0
+#   lck default: 1 (linear kernel), other values 0<=lck<=1
+
+# kernel = 'linear' # kernel type selection
+# lck = 1 # constant to kernel linear combination
+# gamma = None # parameter
+
+w_Ereg,b_Ereg = SVR_E(Xm,y,epsilon=0.01,c=10,kernel='linear',gamma=None,lck=1)
 
 #% Simular el modelo
 y_Ereg = np.dot(Xm,w_Ereg)+b_Ereg
@@ -107,25 +130,33 @@ plt.show()
 
 ######################################
 #%% Optimization E-regression MAPE usando cvxpy
-def SVR_E_MAPE(X,y,epsilon=0.01,c=10):
+def SVR_E_MAPE(X,y,epsilon=0.01,c=10,kernel='linear',gamma=None,lck=1):
     # epsilon = 0.01 # margin max
     # c = 10 # alphas constraint
+    # kernel = 'linear' # kernel type, options: ('linear','rbf','linrbf')
+    # gamma = None # gamma parameter for rbf-kernel and linrbf-kernel
+    # lck = 1 # constant for kernel linear combination, 0<=lck<=1
     umbral = 1E-5 # umbral to define a vector support
     
     nsamples,nfeatures = np.shape(X)
     onev = np.ones((nsamples,1))
     
     # Kernel matrix
-    K = linear_kernel(X,X)
+    if kernel == 'linear':
+        K = linear_kernel(X,X)
+    elif kernel == 'rbf':
+        K = rbf_kernel(X,X,gamma=gamma)
+    elif kernel == 'linrbf':
+        K = linrbf_kernel(X,X,gamma=gamma,lck=lck)
     
+    # Optimization E-regression with MAPE
     alpha1 = cp.Variable((nsamples,1))
     alpha2 = cp.Variable((nsamples,1))
     
-    #% Forma MAPE
     Ev = np.reshape(y,(nsamples,1))*epsilon
     objective = cp.Minimize((1/2)*cp.quad_form(alpha1-alpha2, K) + Ev.T @ (alpha1+alpha2) - y.T @ (alpha1 - alpha2))
     
-    # Restricciones forma matricial
+    # Constrains in matrix form
     G = np.float64(np.concatenate((np.identity(nsamples),-np.identity(nsamples))))
     h=np.float64(np.concatenate((c/np.reshape(y,(nsamples,1)),np.zeros((nsamples,1)))))
     constraints = [onev.T @ (alpha1-alpha2) == 0, G @ alpha1 <= h, G @ alpha2 <= h]
@@ -155,7 +186,7 @@ def SVR_E_MAPE(X,y,epsilon=0.01,c=10):
     return w,b
 
 #%% Aplicar la regresion epsilon MAPE
-w_mape,b_mape = SVR_E_MAPE(Xm,y,epsilon=0.01,c=10)
+w_mape,b_mape = SVR_E_MAPE(Xm,y,epsilon=0.01,c=10,kernel='linear',gamma=None,lck=1)
 
 #% Simular el modelo
 y_mape = np.dot(Xm,w_mape)+b_mape
@@ -169,22 +200,30 @@ ax.view_init(30, 0)
 plt.show()
 
 #%% Optimization classic v formulation E-regression usando cvxpy
-def SVR_vE(X,y,epsilon=0.01,c=10,v=1):
-#    epsilon = 0.01 # margin max
-#    v = 1 # New term
-#    c = 10 # alphas constraint
+def SVR_vE(X,y,epsilon=0.01,c=10,v=1,kernel='linear',gamma=None,lck=1):
+    #    epsilon = 0.01 # margin max
+    #    v = 1 # New term
+    #    c = 10 # alphas constraint
+    # kernel = 'linear' # kernel type, options: ('linear','rbf','linrbf')
+    # gamma = None # gamma parameter for rbf-kernel and linrbf-kernel
+    # lck = 1 # constant for kernel linear combination, 0<=lck<=1
     
     umbral = 1E-5 # vector support 
     nsamples,nfeatures = np.shape(X)
     onev = np.ones((nsamples,1))
     
     # Kernel matrix
-    K = linear_kernel(X,X)
+    if kernel == 'linear':
+        K = linear_kernel(X,X)
+    elif kernel == 'rbf':
+        K = rbf_kernel(X,X,gamma=gamma)
+    elif kernel == 'linrbf':
+        K = linrbf_kernel(X,X,gamma=gamma,lck=lck)
     
+    # Optimization formulation vE-regression 
     alpha1 = cp.Variable((nsamples,1))
     alpha2 = cp.Variable((nsamples,1))
     
-    #% Forma Original
     objective = cp.Minimize((1/2)*cp.quad_form(alpha1-alpha2, K) - y.T @ (alpha1 - alpha2))
     
     # Restricciones forma matricial
@@ -220,7 +259,7 @@ def SVR_vE(X,y,epsilon=0.01,c=10,v=1):
     return w,b
 
 #%% Aplicar la regresion epsilon con formulacion v
-w_vE,b_vE = SVR_vE(Xm,y,epsilon=0.01,c=10,v=1)
+w_vE,b_vE = SVR_vE(Xm,y,epsilon=0.01,c=10,v=1,kernel='linear',gamma=None,lck=1)
 
 #% Simular el modelo
 y_vE = np.dot(Xm,w_vE)+b_vE
@@ -234,27 +273,34 @@ ax.view_init(30, 0)
 plt.show()
 
 #%% Optimization v formulation MAPE-regression usando cvxpy
-def SVR_vMAPE(X,y,epsilon=0.01,c=10,v=1):
-#    epsilon = 0.01 # margin max
-#    v = 1 # New term
-#    c = 10 # alphas constraint
+def SVR_vMAPE(X,y,epsilon=0.01,c=10,v=1,kernel='linear',gamma=None,lck=1):
+    #    epsilon = 0.01 # margin max
+    #    v = 1 # New term
+    #    c = 10 # alphas constraint
+    # kernel = 'linear' # kernel type, options: ('linear','rbf','linrbf')
+    # gamma = None # gamma parameter for rbf-kernel and linrbf-kernel
+    # lck = 1 # constant for kernel linear combination, 0<=lck<=1
     
     umbral = 1E-5 # vector support 
     nsamples,nfeatures = np.shape(X)
     onev = np.ones((nsamples,1))
     
     # Kernel matrix
-    K = linear_kernel(X,X)
+    if kernel == 'linear':
+        K = linear_kernel(X,X)
+    elif kernel == 'rbf':
+        K = rbf_kernel(X,X,gamma=gamma)
+    elif kernel == 'linrbf':
+        K = linrbf_kernel(X,X,gamma=gamma,lck=lck)
     
+    # Optimization formulation vE-regression with MAPE
     alpha1 = cp.Variable((nsamples,1))
     alpha2 = cp.Variable((nsamples,1))
     
-    #% Forma MAPE
     objective = cp.Minimize((1/2)*cp.quad_form(alpha1-alpha2, K) - y.T @ (alpha1 - alpha2))
     
     # Restricciones forma matricial
     G = np.float64(np.concatenate((np.identity(nsamples),-np.identity(nsamples))))
-#    h=np.float64(np.concatenate((c/np.reshape(y,(nsamples,1)),np.zeros((nsamples,1)))))
     h=np.float64(np.concatenate((100*c/np.reshape(y,(nsamples,1)),np.zeros((nsamples,1)))))
     constraints = [onev.T @ (alpha1-alpha2) == 0,
                    (y/100).T @ (alpha1+alpha2) == c*v,
@@ -285,7 +331,7 @@ def SVR_vMAPE(X,y,epsilon=0.01,c=10,v=1):
     return w,b
 
 #%% Aplicar la regresion epsilon con formulacion v
-w_vmape,b_vmape = SVR_vMAPE(Xm,y,epsilon=0.01,c=10,v=1)
+w_vmape,b_vmape = SVR_vMAPE(Xm,y,epsilon=0.01,c=10,v=1,kernel='linear',gamma=None,lck=1)
 
 #% Simular el modelo
 y_vmape = np.dot(Xm,w_vmape)+b_vmape
@@ -305,4 +351,4 @@ rmse_vE,mape_vE = mean_squared_error(y,y_vE),mean_absolute_percentage_error(y,y_
 rmse_vmape,mape_vmape = mean_squared_error(y,y_vmape),mean_absolute_percentage_error(y,y_vmape)
 
 #%%
-print('\n\n\t\t\t RMSE\t\t MAPE\n Formulation Ereg\t %0.4f\t\t %0.4f\n Formulation Emape\t %0.4f\t\t %0.4f\n Formulation vE\t\t %0.4f\t\t %0.4f\n Formulation vmape\t %0.4f\t %0.4f'%(rmse_ereg,mape_ereg,rmse_mape,mape_mape,rmse_vE,mape_vE,rmse_vmape,mape_vmape))
+print('\n\n\t\t\t RMSE\t\t MAPE\n Formulation Ereg\t %0.4f\t\t %0.4f\n Formulation Emape\t %0.4f\t\t %0.4f\n Formulation vE\t\t %0.4f\t\t %0.4f\n Formulation vmape\t %0.4f\t\t %0.4f'%(rmse_ereg,mape_ereg,rmse_mape,mape_mape,rmse_vE,mape_vE,rmse_vmape,mape_vmape))

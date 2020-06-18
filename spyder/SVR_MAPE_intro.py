@@ -9,7 +9,7 @@ Created on Wed May  6 12:13:54 2020
 import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
-from sklearn.metrics.pairwise import linear_kernel
+from sklearn.metrics.pairwise import (linear_kernel,rbf_kernel)
 import cvxpy as cp #https://www.cvxpy.org/
 from sklearn.metrics import mean_squared_error
 
@@ -41,7 +41,21 @@ plt.show()
 
 
 #%% Kernel matrix
-K = linear_kernel(Xm,Xm)
+kernel = 'linrbf' # seleccion del kernel que se quiere aplicar
+lck = 1 # constant to kernel linear combination
+gamma = None # parameter
+
+def linrbf_kernel(X1,X2,lck=lck):
+    return lck*linear_kernel(X1,X2)+(1-lck)*rbf_kernel(X1,X2)
+
+if kernel == 'linear':
+    fkernel = linear_kernel
+elif kernel == 'rbf':
+    fkernel = rbf_kernel
+elif kernel == 'linrbf':
+    fkernel = linrbf_kernel
+
+K = fkernel(Xm,Xm)
 
 #%% Optimization E-regression usando cvxpy
 epsilon = 0.01 # margin max
