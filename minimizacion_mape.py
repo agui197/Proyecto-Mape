@@ -185,10 +185,14 @@ def SVR_vMAPE(X, y, epsilon=0.01, c=10, v=1, kernel='linear', gamma=None, lck=1)
     return w,b
 
 def cargar():
-    consumofeb = read_excel('C:/Users/tripl/Downloads/EntregaFinal/Consumo_feb.xlsx').set_index("fecha").loc["2007-01-01":"2020-03-30"]
+    consumofeb = read_excel(
+        'C:/Users/tripl/OneDrive/Documentos/Proyecto-Mape/EntregaFinal/Consumo_feb.xlsx').set_index(
+            "fecha").loc["2007-01-01":"2020-03-30"]
     consumofeb = consumofeb.drop(["prom", "Lluvia", "Velocidad_viento"], 1)
     
-    consumo = read_excel('C:/Users/tripl/Downloads/EntregaFinal/Data1.xlsx').set_index("fecha").loc["2007-01-01":"2020-03-30"]
+    consumo = read_excel(
+        'C:/Users/tripl/OneDrive/Documentos/Proyecto-Mape/EntregaFinal/Data1.xlsx').set_index(
+            "fecha").loc["2007-01-01":"2020-03-30"]
     while True:
         if len(consumofeb.index) != len(consumo.index): 
             raise RuntimeError("Climatic variable and consumption variable length does not match")
@@ -280,8 +284,8 @@ def modelosclima(n):
     return ca
 
 def festivos():
-    festivos = read_excel('C:/Users/tripl/Downloads/EntregaFinal/Festivos.xlsx')
-    festivos2 = read_excel('C:/Users/tripl/Downloads/EntregaFinal/Festivos2.xlsx')
+    festivos = read_excel('C:/Users/tripl/OneDrive/Documentos/Proyecto-Mape/EntregaFinal/Festivos.xlsx')
+    festivos2 = read_excel('C:/Users/tripl/OneDrive/Documentos/Proyecto-Mape/EntregaFinal/Festivos2.xlsx')
 
     Dum = DataFrame(index = consumo.index)
 
