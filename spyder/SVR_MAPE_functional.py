@@ -17,28 +17,103 @@ from sklearn.metrics import mean_squared_error
 def mean_absolute_percentage_error(y_true,y_pred):
     return np.mean(np.abs((y_true - y_pred) / y_true)) * 100
 
-#%% Kernel linear-rbf linear combination
-def linrbf_kernel(X1,X2,gamma=None,lck=1):
-    return lck*linear_kernel(X1,X2)+(1-lck)*rbf_kernel(X1,X2,gamma=gamma)
+#%% Generate X data points
+def genX(lmin=0,lmax=20,npoints=29):
+    x1 = np.linspace(lmin,lmax,npoints)
+    x2 = np.linspace(lmin,lmax,npoints)
+    X1,X2 = np.meshgrid(x1,x2)
+    x1m = np.ravel(X1.T)
+    x2m = np.ravel(X2.T)
+    Xm = np.c_[x1m,x2m]
+    return Xm
 
-#%% Generacion de los datos
+
+#%% Test function 1 (Hyperplane)
+def testfunction1(X,noise=False):
+    # Modelo: Y = 2*X1+3*X2+40
+    X1 = X[:,0]
+    X2 = X[:,1]
+    if noise:
+        Y = 2*X1+3*X2+40+(5*np.random.rand(X.shape[0])-2.5)
+    else:
+        Y = 2*X1+3*X2+40
+    
+    y = np.ravel(Y.T)
+    return y
+
+#%% Test function 2
+def testfunction2(X,noise=False):
+    # Modelo: Y = 500+(x1^2-x2^2)*sin(0.5*x1)+10
+    X1 = X[:,0]
+    X2 = X[:,1]
+    if noise:
+        Y = 500+(X1**2-X2**2)*np.sin(0.5*X1)+(5*np.random.rand(X.shape[0])-2.5)
+    else:
+        Y = 500+(X1**2-X2**2)*np.sin(0.5*X1)
+    
+    y = np.ravel(Y.T)
+    return y
+
+#%% Test function 3
+def testfunction3(X,noise=False):
+    # Modelo: Y = sin(sqrt(x1^2+x2^2))/sqrt(x1^2+x2^2)+10
+    X1 = X[:,0]
+    X2 = X[:,1]
+    if noise:
+        Y = 10+np.sin(np.sqrt(X1**2+X2**2))/np.sqrt(X1**2+X2**2)+(0.5*np.random.rand(X.shape[0])-0.25)
+    else:
+        Y = 10+np.sin(np.sqrt(X1**2+X2**2))/np.sqrt(X1**2+X2**2)
+    
+    y = np.ravel(Y.T)
+    return y
+
+#%% Test function 4
+def testfunction4(X,noise=False):
+    # Modelo: Y = x1^2+x2^2-np.cos(2*x1)-np.cos(2*x2)+10
+    X1 = X[:,0]
+    X2 = X[:,1]
+    if noise:
+        Y = 10+X1**2+X2**2-10*np.cos(2*X1)-10*np.cos(2*X2)+(5*np.random.rand(X.shape[0])-2.5)
+    else:
+        Y = 10+X1**2+X2**2-10*np.cos(2*X1)-10*np.cos(2*X2)
+    
+    y = np.ravel(Y.T)
+    return y
+
+#%% Custom kernel function
+def custom_kernel(X1,X2,kernel='linear',gamma=None,lck=1):
+    # Kernel matrix
+    if kernel == 'linear':
+        K = linear_kernel(X1,X2)
+    elif kernel == 'rbf':
+        K = rbf_kernel(X1,X2,gamma=gamma)
+    elif kernel == 'linrbf':
+        K = lck*linear_kernel(X1,X2)+(1-lck)*rbf_kernel(X1,X2,gamma=gamma)
+    return K
+
+#%% Simulacion del modelo de regresion
+def sim_modelo(X,params):
+    K_sv = custom_kernel(params[0],X,kernel=params[3],gamma=params[4],lck=params[5])
+    y = np.dot(params[1],K_sv)+params[2]
+    return y
+
+#%% Generacion de un hyperplano
 np.random.seed(1)
+lmin = 1
+lmax = 20
 n = 29
-x1 = np.linspace(1,20,n)
-x2 = np.linspace(1,20,n)
-X1,X2 = np.meshgrid(x1,x2)
-Y = 2*X1+3*X2+40+(5*np.random.rand(X1.shape[0],X1.shape[0])-2.5)
+Xm = genX(lmin=lmin,lmax=lmax,npoints=n)
+#y = testfunction1(X=Xm,noise=True)
+y = testfunction2(X=Xm,noise=True)
+#y = testfunction3(X=Xm,noise=True)
+#y = testfunction4(X=Xm,noise=True)
 
-x1m = np.ravel(X1.T)
-x2m = np.ravel(X2.T)
-Xm = np.c_[x1m,x2m]
-y = np.ravel(Y.T)
 
 
 #%% Visualizar los datos
 fig = plt.figure()
 ax = fig.add_subplot(111, projection='3d')
-ax.scatter(x1m, x2m, y, c=y)
+ax.scatter(Xm[:,0], Xm[:,1], y, c=y)
 plt.show()
 
 #%% Funcion SVR_E
@@ -55,12 +130,7 @@ def SVR_E(X,y,epsilon=0.01,c=10,kernel='linear',gamma=None,lck=1):
     onev = np.ones((nsamples,1))
     
     # Kernel matrix
-    if kernel == 'linear':
-        K = linear_kernel(X,X)
-    elif kernel == 'rbf':
-        K = rbf_kernel(X,X,gamma=gamma)
-    elif kernel == 'linrbf':
-        K = linrbf_kernel(X,X,gamma=gamma,lck=lck)
+    K = custom_kernel(Xm,Xm,kernel=kernel,gamma=gamma,lck=lck)
 
     # Optimization E-regression
     alpha1 = cp.Variable((nsamples,1))
@@ -88,15 +158,10 @@ def SVR_E(X,y,epsilon=0.01,c=10,kernel='linear',gamma=None,lck=1):
     y_sv = y[indx[:,0]]
     
     
-    w = np.sum(np.transpose(np.tile(alpha_sv,(nfeatures,1)))*x_sv,axis=0)
-    b = np.mean(y_sv-np.dot(x_sv,w))
+    # Coef0 obtention
+    b = np.mean(y_sv-np.dot(alpha_sv,custom_kernel(x_sv,x_sv,kernel=kernel,gamma=gamma,lck=lck)))
     
-    print('w=')
-    print(w)
-    print('b=')
-    print(b)
-    
-    return w,b
+    return x_sv,alpha_sv,b,kernel,gamma,lck
 #%% Aplicar la regresion epsilon
 # Parameters values
 #   epsilon default: 0.1, epsilon>0
@@ -109,18 +174,18 @@ def SVR_E(X,y,epsilon=0.01,c=10,kernel='linear',gamma=None,lck=1):
 # lck = 1 # constant to kernel linear combination
 # gamma = None # parameter
 
-w_Ereg,b_Ereg = SVR_E(Xm,y,epsilon=0.01,c=10,kernel='linear',gamma=None,lck=1)
+params_E = SVR_E(Xm,y,epsilon=0.01,c=10,kernel='linear',gamma=None,lck=1)
 
 #% Simular el modelo
-y_Ereg = np.dot(Xm,w_Ereg)+b_Ereg
+y_Ereg = sim_modelo(Xm,params_E)
 
 
 #% Visualizar los resultados
 fig = plt.figure()
 ax = fig.add_subplot(111, projection='3d')
-ax.scatter(x1m, x2m, y, c=y,s=5)
-ax.scatter(x1m, x2m, y_Ereg, c='r',s=10)
-ax.view_init(30, 0)
+ax.scatter(Xm[:,0], Xm[:,1], y, c=y,s=5)
+ax.scatter(Xm[:,0], Xm[:,1], y_Ereg, c='r',s=10)
+#ax.view_init(30, 0)
 plt.show()
 
 
@@ -142,12 +207,7 @@ def SVR_E_MAPE(X,y,epsilon=0.01,c=10,kernel='linear',gamma=None,lck=1):
     onev = np.ones((nsamples,1))
     
     # Kernel matrix
-    if kernel == 'linear':
-        K = linear_kernel(X,X)
-    elif kernel == 'rbf':
-        K = rbf_kernel(X,X,gamma=gamma)
-    elif kernel == 'linrbf':
-        K = linrbf_kernel(X,X,gamma=gamma,lck=lck)
+    K = custom_kernel(Xm,Xm,kernel=kernel,gamma=gamma,lck=lck)
     
     # Optimization E-regression with MAPE
     alpha1 = cp.Variable((nsamples,1))
@@ -174,29 +234,23 @@ def SVR_E_MAPE(X,y,epsilon=0.01,c=10,kernel='linear',gamma=None,lck=1):
     x_sv = X[indx[:,0],:]
     y_sv = y[indx[:,0]]
     
+    # Coef0 obtention
+    b = np.mean(y_sv-np.dot(alpha_sv,custom_kernel(x_sv,x_sv,kernel=kernel,gamma=gamma,lck=lck)))
     
-    w = np.sum(np.transpose(np.tile(alpha_sv,(nfeatures,1)))*x_sv,axis=0)
-    b = np.mean(y_sv-np.dot(x_sv,w))
-    
-    print('w=')
-    print(w)
-    print('b=')
-    print(b)
-    
-    return w,b
+    return x_sv,alpha_sv,b,kernel,gamma,lck
 
 #%% Aplicar la regresion epsilon MAPE
-w_mape,b_mape = SVR_E_MAPE(Xm,y,epsilon=0.01,c=10,kernel='linear',gamma=None,lck=1)
+params_Emape = SVR_E_MAPE(Xm,y,epsilon=0.01,c=10,kernel='linear',gamma=None,lck=1)
 
 #% Simular el modelo
-y_mape = np.dot(Xm,w_mape)+b_mape
+y_mape = sim_modelo(Xm,params_Emape)
 
 #% Visualizar los resultados
 fig = plt.figure()
 ax = fig.add_subplot(111, projection='3d')
-ax.scatter(x1m, x2m, y, c=y,s=5)
-ax.scatter(x1m, x2m, y_mape, c='r',s=10)
-ax.view_init(30, 0)
+ax.scatter(Xm[:,0],Xm[:,1], y, c=y,s=5)
+ax.scatter(Xm[:,0],Xm[:,1], y_mape, c='r',s=10)
+#ax.view_init(30, 0)
 plt.show()
 
 #%% Optimization classic v formulation E-regression usando cvxpy
@@ -213,12 +267,7 @@ def SVR_vE(X,y,epsilon=0.01,c=10,v=1,kernel='linear',gamma=None,lck=1):
     onev = np.ones((nsamples,1))
     
     # Kernel matrix
-    if kernel == 'linear':
-        K = linear_kernel(X,X)
-    elif kernel == 'rbf':
-        K = rbf_kernel(X,X,gamma=gamma)
-    elif kernel == 'linrbf':
-        K = linrbf_kernel(X,X,gamma=gamma,lck=lck)
+    K = custom_kernel(Xm,Xm,kernel=kernel,gamma=gamma,lck=lck)
     
     # Optimization formulation vE-regression 
     alpha1 = cp.Variable((nsamples,1))
@@ -247,29 +296,23 @@ def SVR_vE(X,y,epsilon=0.01,c=10,v=1,kernel='linear',gamma=None,lck=1):
     x_sv = X[indx[:,0],:]
     y_sv = y[indx[:,0]]
     
+    # Coef0 obtention
+    b = np.mean(y_sv-np.dot(alpha_sv,custom_kernel(x_sv,x_sv,kernel=kernel,gamma=gamma,lck=lck)))
     
-    w = np.sum(np.transpose(np.tile(alpha_sv,(nfeatures,1)))*x_sv,axis=0)
-    b = np.mean(y_sv-np.dot(x_sv,w))
-    
-    print('w=')
-    print(w)
-    print('b=')
-    print(b)
-    
-    return w,b
+    return x_sv,alpha_sv,b,kernel,gamma,lck
 
 #%% Aplicar la regresion epsilon con formulacion v
-w_vE,b_vE = SVR_vE(Xm,y,epsilon=0.01,c=10,v=1,kernel='linear',gamma=None,lck=1)
+params_vE = SVR_vE(Xm,y,epsilon=0.01,c=10,v=1,kernel='linear',gamma=None,lck=1)
 
 #% Simular el modelo
-y_vE = np.dot(Xm,w_vE)+b_vE
+y_vE = sim_modelo(Xm,params_vE)
 
 #% Visualizar los resultados
 fig = plt.figure()
 ax = fig.add_subplot(111, projection='3d')
-ax.scatter(x1m, x2m, y, c=y,s=5)
-ax.scatter(x1m, x2m, y_vE, c='r',s=10)
-ax.view_init(30, 0)
+ax.scatter(Xm[:,0],Xm[:,1], y, c=y,s=5)
+ax.scatter(Xm[:,0],Xm[:,1], y_vE, c='r',s=10)
+#ax.view_init(30, 0)
 plt.show()
 
 #%% Optimization v formulation MAPE-regression usando cvxpy
@@ -286,12 +329,7 @@ def SVR_vMAPE(X,y,epsilon=0.01,c=10,v=1,kernel='linear',gamma=None,lck=1):
     onev = np.ones((nsamples,1))
     
     # Kernel matrix
-    if kernel == 'linear':
-        K = linear_kernel(X,X)
-    elif kernel == 'rbf':
-        K = rbf_kernel(X,X,gamma=gamma)
-    elif kernel == 'linrbf':
-        K = linrbf_kernel(X,X,gamma=gamma,lck=lck)
+    K = custom_kernel(Xm,Xm,kernel=kernel,gamma=gamma,lck=lck)
     
     # Optimization formulation vE-regression with MAPE
     alpha1 = cp.Variable((nsamples,1))
@@ -319,29 +357,23 @@ def SVR_vMAPE(X,y,epsilon=0.01,c=10,v=1,kernel='linear',gamma=None,lck=1):
     x_sv = X[indx[:,0],:]
     y_sv = y[indx[:,0]]
     
+    # Coef0 obtention
+    b = np.mean(y_sv-np.dot(alpha_sv,custom_kernel(x_sv,x_sv,kernel=kernel,gamma=gamma,lck=lck)))
     
-    w = np.sum(np.transpose(np.tile(alpha_sv,(nfeatures,1)))*x_sv,axis=0)
-    b = np.mean(y_sv-np.dot(x_sv,w))
-    
-    print('w=')
-    print(w)
-    print('b=')
-    print(b)
-    
-    return w,b
+    return x_sv,alpha_sv,b,kernel,gamma,lck
 
 #%% Aplicar la regresion epsilon con formulacion v
-w_vmape,b_vmape = SVR_vMAPE(Xm,y,epsilon=0.01,c=10,v=1,kernel='linear',gamma=None,lck=1)
+params_vmape = SVR_vMAPE(Xm,y,epsilon=0.01,c=10,v=1,kernel='linear',gamma=None,lck=1)
 
 #% Simular el modelo
-y_vmape = np.dot(Xm,w_vmape)+b_vmape
+y_vmape = sim_modelo(Xm,params_vmape)
 
 #% Visualizar los resultados
 fig = plt.figure()
 ax = fig.add_subplot(111, projection='3d')
-ax.scatter(x1m, x2m, y, c=y,s=5)
-ax.scatter(x1m, x2m, y_vmape, c='r',s=10)
-ax.view_init(30, 0)
+ax.scatter(Xm[:,0],Xm[:,1], y, c=y,s=5)
+ax.scatter(Xm[:,0],Xm[:,1], y_vmape, c='r',s=10)
+#ax.view_init(30, 0)
 plt.show()
 
 #%% Evaluacion de ambas implementaciones
