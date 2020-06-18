@@ -515,95 +515,96 @@ X = kron(n)
 y = ravel(consumo)
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=n, shuffle=False)
 
-Xm = X_train[:200]
-y = y_train[:200]
-np = 25
-iterations = 7
+for i in range(7):
+    Xm = X_train[:200 + i]
+    y = y_train[:200 + i]
+    np = 25
+    iterations = 7
 
-X_test = X_train[200:207]
-y_test = y_train[200:207]
+    X_test = X_train[200 + i:207 + i]
+    y_test = y_train[200 + i:207 + i]
 
-kernel = 'linear'
-gamma = None
-lck = 1
+    kernel = 'linear'
+    gamma = None
+    lck = 1
 
-epsilon, c, v = pso(np, iterations, 2)
-w_Ereg, b_Ereg = SVR_E(Xm, y, epsilon=epsilon, c=c, kernel=kernel, gamma=gamma, lck=lck)
-y_Ereg = dot(Xm, w_Ereg) + b_Ereg
+    epsilon, c, v = pso(np, iterations, 2)
+    w_Ereg, b_Ereg = SVR_E(Xm, y, epsilon=epsilon, c=c, kernel=kernel, gamma=gamma, lck=lck)
+    y_Ereg = dot(Xm, w_Ereg) + b_Ereg
 
-epsilon1, c1, v1 = pso(np, iterations, 0)
-w_mape, b_mape = SVR_E_MAPE(Xm, y, epsilon=epsilon1, c=c1, kernel=kernel, gamma=gamma, lck=lck)
-y_mape = dot(Xm, w_mape) + b_mape
+    epsilon1, c1, v1 = pso(np, iterations, 0)
+    w_mape, b_mape = SVR_E_MAPE(Xm, y, epsilon=epsilon1, c=c1, kernel=kernel, gamma=gamma, lck=lck)
+    y_mape = dot(Xm, w_mape) + b_mape
 
-epsilon2, c2, v2 = pso(np, iterations, 3)
-w_vE, b_vE = SVR_vE(Xm, y, epsilon=epsilon2, c=c2, v=v2, kernel=kernel, gamma=gamma, lck=lck)
-y_vE = dot(Xm, w_vE) + b_vE
+    epsilon2, c2, v2 = pso(np, iterations, 3)
+    w_vE, b_vE = SVR_vE(Xm, y, epsilon=epsilon2, c=c2, v=v2, kernel=kernel, gamma=gamma, lck=lck)
+    y_vE = dot(Xm, w_vE) + b_vE
 
-epsilon3, c3, v3 = pso(np, iterations, 1)
-w_vmape, b_vmape = SVR_vMAPE(Xm, y, epsilon=epsilon3, c=c3, v=v3, kernel=kernel, gamma=gamma, lck=lck)
-y_vmape = dot(Xm, w_vmape) + b_vmape
+    epsilon3, c3, v3 = pso(np, iterations, 1)
+    w_vmape, b_vmape = SVR_vMAPE(Xm, y, epsilon=epsilon3, c=c3, v=v3, kernel=kernel, gamma=gamma, lck=lck)
+    y_vmape = dot(Xm, w_vmape) + b_vmape
 
-rmse_ereg, mape_ereg = mean_squared_error(y, y_Ereg), mean_absolute_percentage_error(y, y_Ereg)
-rmse_mape, mape_mape = mean_squared_error(y, y_mape), mean_absolute_percentage_error(y, y_mape)
+    rmse_ereg, mape_ereg = mean_squared_error(y, y_Ereg), mean_absolute_percentage_error(y, y_Ereg)
+    rmse_mape, mape_mape = mean_squared_error(y, y_mape), mean_absolute_percentage_error(y, y_mape)
 
-rmse_vE, mape_vE = mean_squared_error(y, y_vE), mean_absolute_percentage_error(y, y_vE)
-rmse_vmape, mape_vmape = mean_squared_error(y, y_vmape), mean_absolute_percentage_error(y, y_vmape)
+    rmse_vE, mape_vE = mean_squared_error(y, y_vE), mean_absolute_percentage_error(y, y_vE)
+    rmse_vmape, mape_vmape = mean_squared_error(y, y_vmape), mean_absolute_percentage_error(y, y_vmape)
 
-results = DataFrame([[sqrt(rmse_ereg), mape_ereg], 
-                     [sqrt(rmse_mape), mape_mape], 
-                     [sqrt(rmse_vE), mape_vE], 
-                     [sqrt(rmse_vmape), mape_vmape]])
+    results = DataFrame([[sqrt(rmse_ereg), mape_ereg], 
+                        [sqrt(rmse_mape), mape_mape], 
+                        [sqrt(rmse_vE), mape_vE], 
+                        [sqrt(rmse_vmape), mape_vmape]])
 
-hiperparams = DataFrame([[epsilon, c, v],
-                         [epsilon1, c1, v1],
-                         [epsilon2, c2, v2],
-                         [epsilon3, c3, v3]])
+    hiperparams = DataFrame([[epsilon, c, v],
+                            [epsilon1, c1, v1],
+                            [epsilon2, c2, v2],
+                            [epsilon3, c3, v3]])
 
-results.to_csv('results_train_'+kernel+'.csv')
-hiperparams.to_csv('hiperparams_'+kernel+'.csv')
+    results.to_csv('results_train_'+kernel+'_D'+str(i)+'.csv')
+    hiperparams.to_csv('hiperparams_'+kernel+'_D'+str(i)+'.csv')
 
-print('\n\n\t\t\t\t\t RMSE\t\t MAPE\n \
-        Formulation Ereg\t %0.4f\t\t %0.4f\n \
-        Formulation Emape\t %0.4f\t\t %0.4f\n \
-        Formulation vE\t\t %0.4f\t\t %0.4f\n \
-        Formulation vmape\t %0.4f\t\t %0.4f'%(
-            sqrt(rmse_ereg), mape_ereg,
-            sqrt(rmse_mape), mape_mape,
-            sqrt(rmse_vE), mape_vE,
-            sqrt(rmse_vmape), mape_vmape))
+    print('\n\n\t\t\t\t\t RMSE\t\t MAPE\n \
+            Formulation Ereg\t %0.4f\t\t %0.4f\n \
+            Formulation Emape\t %0.4f\t\t %0.4f\n \
+            Formulation vE\t\t %0.4f\t\t %0.4f\n \
+            Formulation vmape\t %0.4f\t\t %0.4f'%(
+                sqrt(rmse_ereg), mape_ereg,
+                sqrt(rmse_mape), mape_mape,
+                sqrt(rmse_vE), mape_vE,
+                sqrt(rmse_vmape), mape_vmape))
 
-y_EregR = dot(X_test, w_Ereg) + b_Ereg
-y_mapeR = dot(X_test, w_mape) + b_mape
-y_vER = dot(X_test, w_vE) + b_vE
-y_vmapeR = dot(X_test, w_vmape) + b_vmape
+    y_EregR = dot(X_test, w_Ereg) + b_Ereg
+    y_mapeR = dot(X_test, w_mape) + b_mape
+    y_vER = dot(X_test, w_vE) + b_vE
+    y_vmapeR = dot(X_test, w_vmape) + b_vmape
 
-rmse_ereg, mape_ereg = mean_squared_error(y_test, y_EregR), mean_absolute_percentage_error(y_test, y_EregR)
-rmse_mape, mape_mape = mean_squared_error(y_test, y_mapeR), mean_absolute_percentage_error(y_test, y_mapeR)
+    rmse_ereg, mape_ereg = mean_squared_error(y_test, y_EregR), mean_absolute_percentage_error(y_test, y_EregR)
+    rmse_mape, mape_mape = mean_squared_error(y_test, y_mapeR), mean_absolute_percentage_error(y_test, y_mapeR)
 
-rmse_vE, mape_vE = mean_squared_error(y_test, y_vER), mean_absolute_percentage_error(y_test, y_vER)
-rmse_vmape, mape_vmape = mean_squared_error(y_test, y_vmapeR), mean_absolute_percentage_error(y_test, y_vmapeR)
+    rmse_vE, mape_vE = mean_squared_error(y_test, y_vER), mean_absolute_percentage_error(y_test, y_vER)
+    rmse_vmape, mape_vmape = mean_squared_error(y_test, y_vmapeR), mean_absolute_percentage_error(y_test, y_vmapeR)
 
-print('\n\n\t\t\t\t\t RMSE\t\t MAPE\n \
-        Formulation Ereg\t %0.4f\t\t %0.4f\n \
-        Formulation Emape\t %0.4f\t\t %0.4f\n \
-        Formulation vE\t\t %0.4f\t\t %0.4f\n \
-        Formulation vmape\t %0.4f\t\t %0.4f'%(
-            sqrt(rmse_ereg), mape_ereg,
-            sqrt(rmse_mape), mape_mape,
-            sqrt(rmse_vE), mape_vE,
-            sqrt(rmse_vmape), mape_vmape))
+    print('\n\n\t\t\t\t\t RMSE\t\t MAPE\n \
+            Formulation Ereg\t %0.4f\t\t %0.4f\n \
+            Formulation Emape\t %0.4f\t\t %0.4f\n \
+            Formulation vE\t\t %0.4f\t\t %0.4f\n \
+            Formulation vmape\t %0.4f\t\t %0.4f'%(
+                sqrt(rmse_ereg), mape_ereg,
+                sqrt(rmse_mape), mape_mape,
+                sqrt(rmse_vE), mape_vE,
+                sqrt(rmse_vmape), mape_vmape))
 
-Xm.to_csv('X_train_'+kernel+'.csv')
-X_test.to_csv('X_test_'+kernel+'.csv')
-ydf = DataFrame(array([y, y_Ereg, y_mape, y_vE, y_vmape]).T)
-yRdf = DataFrame(array([y_test, y_EregR, y_mapeR, y_vER, y_vmapeR]).T)
+    Xm.to_csv('X_train_'+kernel+'_D'+str(i)+'.csv')
+    X_test.to_csv('X_test_'+kernel+'_D'+str(i)+'.csv')
+    ydf = DataFrame(array([y, y_Ereg, y_mape, y_vE, y_vmape]).T)
+    yRdf = DataFrame(array([y_test, y_EregR, y_mapeR, y_vER, y_vmapeR]).T)
 
-ydf.to_csv('y_train_'+kernel+'.csv')
-yRdf.to_csv('y_test_'+kernel+'.csv')
+    ydf.to_csv('y_train_'+kernel+'_D'+str(i)+'.csv')
+    yRdf.to_csv('y_test_'+kernel+'_D'+str(i)+'.csv')
 
-results = DataFrame([[sqrt(rmse_ereg), mape_ereg], 
-                     [sqrt(rmse_mape), mape_mape], 
-                     [sqrt(rmse_vE), mape_vE], 
-                     [sqrt(rmse_vmape), mape_vmape]])
+    results = DataFrame([[sqrt(rmse_ereg), mape_ereg], 
+                        [sqrt(rmse_mape), mape_mape], 
+                        [sqrt(rmse_vE), mape_vE], 
+                        [sqrt(rmse_vmape), mape_vmape]])
 
-results.to_csv('results_test_'+kernel+'.csv')
+    results.to_csv('results_test_'+kernel+'_D'+str(i)+'.csv')
