@@ -17,45 +17,107 @@ from sklearn.metrics import mean_squared_error
 def mean_absolute_percentage_error(y_true,y_pred):
     return np.mean(np.abs((y_true - y_pred) / y_true)) * 100
 
-#%% Generacion de los datos
-np.random.seed(1)
-n = 29
-x1 = np.linspace(1,20,n)
-x2 = np.linspace(1,20,n)
-X1,X2 = np.meshgrid(x1,x2)
-Y = 2*X1+3*X2+40+(5*np.random.rand(X1.shape[0],X1.shape[0])-2.5)
+#%% Generate X data points
+def genX(lmin=0,lmax=10,npoints=29):
+    x1 = np.linspace(lmin,lmax,npoints)
+    x2 = np.linspace(lmin,lmax,npoints)
+    X1,X2 = np.meshgrid(x1,x2)
+    x1m = np.ravel(X1.T)
+    x2m = np.ravel(X2.T)
+    Xm = np.c_[x1m,x2m]
+    return Xm
 
-x1m = np.ravel(X1.T)
-x2m = np.ravel(X2.T)
-Xm = np.c_[x1m,x2m]
-y = np.ravel(Y.T)
-nsamples = y.shape[0]
+
+#%% Test function 1 (Hyperplane)
+def testfunction1(X,noise=False):
+    # Modelo: Y = 2*X1+3*X2+40
+    X1 = X[:,0]
+    X2 = X[:,1]
+    if noise:
+        Y = 2*X1+3*X2+40+(5*np.random.rand(X.shape[0])-2.5)
+    else:
+        Y = 2*X1+3*X2+40
+    
+    y = np.ravel(Y.T)
+    return y
+
+#%% Test function 2
+def testfunction2(X,noise=False):
+    # Modelo: Y = (x1^2-x2^2)*sin(0.5*x1)+10
+    X1 = X[:,0]
+    X2 = X[:,1]
+    if noise:
+        Y = 100+(X1**2-X2**2)*np.sin(0.5*X1)+(5*np.random.rand(X.shape[0])-2.5)
+    else:
+        Y = 100+(X1**2-X2**2)*np.sin(0.5*X1)
+    
+    y = np.ravel(Y.T)
+    return y
+
+#%% Test function 3
+def testfunction3(X,noise=False):
+    # Modelo: Y = sin(sqrt(x1^2+x2^2))/sqrt(x1^2+x2^2)+10
+    X1 = X[:,0]
+    X2 = X[:,1]
+    if noise:
+        Y = 10+np.sin(np.sqrt(X1**2+X2**2))/np.sqrt(X1**2+X2**2)+(0.5*np.random.rand(X.shape[0])-0.25)
+    else:
+        Y = 10+np.sin(np.sqrt(X1**2+X2**2))/np.sqrt(X1**2+X2**2)
+    
+    y = np.ravel(Y.T)
+    return y
+
+#%% Test function 4
+def testfunction4(X,noise=False):
+    # Modelo: Y = x1^2+x2^2-np.cos(2*x1)-np.cos(2*x2)+10
+    X1 = X[:,0]
+    X2 = X[:,1]
+    if noise:
+        Y = 10+X1**2+X2**2-10*np.cos(2*X1)-10*np.cos(2*X2)+(5*np.random.rand(X.shape[0])-2.5)
+    else:
+        Y = 10+X1**2+X2**2-10*np.cos(2*X1)-10*np.cos(2*X2)
+    
+    y = np.ravel(Y.T)
+    return y
+
+#%% Generacion de un hyperplano
+#np.random.seed(1)
+lmin = 1
+lmax = 10
+n = 29
+Xm = genX(lmin=lmin,lmax=lmax,npoints=n)
+#y = testfunction1(X=Xm,noise=True)
+#y = testfunction2(X=Xm,noise=True)
+y = testfunction3(X=Xm,noise=True)
+#y = testfunction4(X=Xm,noise=True)
+
+nsamples=Xm.shape[0]
 
 #%% Visualizar los datos
 fig = plt.figure()
 ax = fig.add_subplot(111, projection='3d')
-ax.scatter(x1m, x2m, y, c=y)
+ax.scatter(Xm[:,0],Xm[:,1], y, c=y)
 plt.show()
 
 
 
 
 #%% Kernel matrix
-kernel = 'linrbf' # seleccion del kernel que se quiere aplicar
-lck = 1 # constant to kernel linear combination
+kernel = 'rbf' # seleccion del kernel que se quiere aplicar
+lck = 0.5 # constant to kernel linear combination
 gamma = None # parameter
 
-def linrbf_kernel(X1,X2,lck=lck):
-    return lck*linear_kernel(X1,X2)+(1-lck)*rbf_kernel(X1,X2)
+def custom_kernel(X1,X2,kernel='linear',gamma=None,lck=1):
+    # Kernel matrix
+    if kernel == 'linear':
+        K = linear_kernel(X1,X2)
+    elif kernel == 'rbf':
+        K = rbf_kernel(X1,X2,gamma=gamma)
+    elif kernel == 'linrbf':
+        K = lck*linear_kernel(X1,X2)+(1-lck)*rbf_kernel(X1,X2,gamma=gamma)
+    return K
 
-if kernel == 'linear':
-    fkernel = linear_kernel
-elif kernel == 'rbf':
-    fkernel = rbf_kernel
-elif kernel == 'linrbf':
-    fkernel = linrbf_kernel
-
-K = fkernel(Xm,Xm)
+K = custom_kernel(Xm,Xm,kernel=kernel,gamma=gamma,lck=lck)
 
 #%% Optimization E-regression usando cvxpy
 epsilon = 0.01 # margin max
@@ -88,21 +150,26 @@ alpha_sv = alphas[indx]
 x_sv = Xm[indx[:,0],:]
 y_sv = y[indx[:,0]]
 
+# Evaluacion del modelo
+b_Ereg = np.mean(y_sv-np.dot(alpha_sv,custom_kernel(x_sv,x_sv,kernel=kernel,gamma=gamma,lck=lck)))
+K_sv = custom_kernel(x_sv,Xm,kernel=kernel,gamma=gamma,lck=lck)
+y_Ereg = np.dot(alpha_sv,K_sv)+b_Ereg
 
-w_Ereg = np.sum(np.c_[alpha_sv,alpha_sv]*x_sv,axis=0)
-b_Ereg = np.mean(y_sv-np.dot(x_sv,w_Ereg))
 
-print('w_Ereg=[%0.3f,%0.3f]'%(w_Ereg[0],w_Ereg[1]))
-print('b_Ereg=%0.3f'%b_Ereg)
+#w_Ereg = np.sum(np.c_[alpha_sv,alpha_sv]*x_sv,axis=0)
+#b_Ereg = np.mean(y_sv-np.dot(x_sv,w_Ereg))
+#
+#print('w_Ereg=[%0.3f,%0.3f]'%(w_Ereg[0],w_Ereg[1]))
+#print('b_Ereg=%0.3f'%b_Ereg)
 
-#% Visualizar los resultados
-y_Ereg = w_Ereg[0]*x1m+w_Ereg[1]*x2m+b_Ereg
+##% Visualizar los resultados
+#y_Ereg = w_Ereg[0]*Xm[:,0]+w_Ereg[1]*Xm[:,1]+b_Ereg
 
 fig = plt.figure()
 ax = fig.add_subplot(111, projection='3d')
-ax.scatter(x1m, x2m, y, c=y,s=5)
-ax.scatter(x1m, x2m, y_Ereg, c='r',s=10)
-ax.view_init(30, 0)
+ax.scatter(Xm[:,0],Xm[:,1], y, c=y,s=5)
+ax.scatter(Xm[:,0],Xm[:,1], y_Ereg, c='r',s=10)
+#ax.view_init(30, 0)
 plt.show()
 
 
@@ -146,20 +213,16 @@ x_sv = Xm[indx[:,0],:]
 y_sv = y[indx[:,0]]
 
 
-w_mape = np.sum(np.c_[alpha_sv,alpha_sv]*x_sv,axis=0)
-b_mape = np.mean(y_sv-np.dot(x_sv,w_mape))
-
-print('w_mape=[%0.3f,%0.3f]'%(w_mape[0],w_mape[1]))
-print('b_mape=%0.3f'%b_mape)
-
-#% Visualizar los resultados
-y_mape = w_mape[0]*x1m+w_mape[1]*x2m+b_mape
+# Evaluacion del modelo
+b_Emape = np.mean(y_sv-np.dot(alpha_sv,custom_kernel(x_sv,x_sv,kernel=kernel,gamma=gamma,lck=lck)))
+K_sv = custom_kernel(x_sv,Xm,kernel=kernel,gamma=gamma,lck=lck)
+y_mape = np.dot(alpha_sv,K_sv)+b_Emape
 
 fig = plt.figure()
 ax = fig.add_subplot(111, projection='3d')
-ax.scatter(x1m, x2m, y, c=y,s=5)
-ax.scatter(x1m, x2m, y_mape, c='r',s=10)
-ax.view_init(30, 0)
+ax.scatter(Xm[:,0],Xm[:,1], y, c=y,s=5)
+ax.scatter(Xm[:,0],Xm[:,1], y_mape, c='r',s=10)
+#ax.view_init(30, 0)
 plt.show()
 
 #%% Optimization classic v-formulation. E-regression usando cvxpy
@@ -197,20 +260,16 @@ x_sv = Xm[indx[:,0],:]
 y_sv = y[indx[:,0]]
 
 
-w_Ereg = np.sum(np.c_[alpha_sv,alpha_sv]*x_sv,axis=0)
-b_Ereg = np.mean(y_sv-np.dot(x_sv,w_Ereg))
-
-print('w_Ereg=[%0.3f,%0.3f]'%(w_Ereg[0],w_Ereg[1]))
-print('b_Ereg=%0.3f'%b_Ereg)
-
-#% Visualizar los resultados
-y_Ereg = w_Ereg[0]*x1m+w_Ereg[1]*x2m+b_Ereg
+# Evaluacion del modelo
+b_vE = np.mean(y_sv-np.dot(alpha_sv,custom_kernel(x_sv,x_sv,kernel=kernel,gamma=gamma,lck=lck)))
+K_sv = custom_kernel(x_sv,Xm,kernel=kernel,gamma=gamma,lck=lck)
+y_vE = np.dot(alpha_sv,K_sv)+b_vE
 
 fig = plt.figure()
 ax = fig.add_subplot(111, projection='3d')
-ax.scatter(x1m, x2m, y, c=y,s=5)
-ax.scatter(x1m, x2m, y_Ereg, c='r',s=10)
-ax.view_init(30, 0)
+ax.scatter(Xm[:,0],Xm[:,1], y, c=y,s=5)
+ax.scatter(Xm[:,0],Xm[:,1], y_vE, c='r',s=10)
+#ax.view_init(30, 0)
 plt.show()
 
 #%% Optimization v-formulation E-MAPE usando cvxpy
@@ -250,20 +309,16 @@ x_sv = Xm[indx[:,0],:]
 y_sv = y[indx[:,0]]
 
 
-w_mape = np.sum(np.c_[alpha_sv,alpha_sv]*x_sv,axis=0)
-b_mape = np.mean(y_sv-np.dot(x_sv,w_mape))
-
-print('w_mape=[%0.3f,%0.3f]'%(w_mape[0],w_mape[1]))
-print('b_mape=%0.3f'%b_mape)
-
-#% Visualizar los resultados
-y_mape = w_mape[0]*x1m+w_mape[1]*x2m+b_mape
+# Evaluacion del modelo
+b_vmape = np.mean(y_sv-np.dot(alpha_sv,custom_kernel(x_sv,x_sv,kernel=kernel,gamma=gamma,lck=lck)))
+K_sv = custom_kernel(x_sv,Xm,kernel=kernel,gamma=gamma,lck=lck)
+y_vmape = np.dot(alpha_sv,K_sv)+b_vmape
 
 fig = plt.figure()
 ax = fig.add_subplot(111, projection='3d')
-ax.scatter(x1m, x2m, y, c=y,s=5)
-ax.scatter(x1m, x2m, y_mape, c='r',s=10)
-ax.view_init(30, 0)
+ax.scatter(Xm[:,0],Xm[:,1], y, c=y,s=5)
+ax.scatter(Xm[:,0],Xm[:,1], y_vmape, c='r',s=10)
+#ax.view_init(30, 0)
 plt.show()
 
 #%% Evaluacion de ambas implementaciones
