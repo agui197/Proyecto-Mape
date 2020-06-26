@@ -6,16 +6,17 @@ Created on Wed May  6 12:13:54 2020
 """
 
 #Importar librerias
+print('Cargando librerias ...')
 import numpy as np
-import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
 from sklearn.metrics.pairwise import (linear_kernel,rbf_kernel)
 import cvxpy as cp #https://www.cvxpy.org/
 from sklearn.metrics import mean_squared_error
 from pyswarm import pso
-
+import pickle
+print('\tLibrerias cargadas.\r')
 #%% Funciones a utilizar
 #% Funcion MAPE
+print('\rCargando funciones ...\r')
 def mean_absolute_percentage_error(y_true,y_pred):
     return np.mean(np.abs((y_true - y_pred) / y_true)) * 100
 
@@ -294,7 +295,7 @@ def SVR_vMAPE(X,y,epsilon=0.01,c=10,v=1,kernel='linear',gamma=None,lck=1):
     
     return x_sv,alpha_sv,b,kernel,gamma,lck
 
-#%% Funcion para optimizar parametros de formulacion SVR_E con pso
+#% Funcion para optimizar parametros de formulacion SVR_E con pso
 def opt_SVR_E(x, *args):
     epsilon,c,v,gamma,lck = x
     Xm,y = args
@@ -306,7 +307,7 @@ def opt_SVR_E(x, *args):
         mape_ereg = 1000000
     return mape_ereg
 
-#%% Funcion para optimizar parametros de formulacion SVR_E_MAPE con pso
+#% Funcion para optimizar parametros de formulacion SVR_E_MAPE con pso
 def opt_SVR_E_MAPE(x, *args):
     epsilon,c,v,gamma,lck = x
     Xm,y = args
@@ -318,7 +319,7 @@ def opt_SVR_E_MAPE(x, *args):
         mape_mape = 1000000
     return mape_mape
 
-#%% Funcion para optimizar parametros de formulacion SVR_vE con pso
+#% Funcion para optimizar parametros de formulacion SVR_vE con pso
 def opt_SVR_vE(x, *args):
     epsilon,c,v,gamma,lck = x
     Xm,y = args
@@ -330,7 +331,7 @@ def opt_SVR_vE(x, *args):
         mape_vE = 1000000
     return mape_vE
 
-#%% Funcion para optimizar parametros de formulacion SVR_vMAPE con pso
+#% Funcion para optimizar parametros de formulacion SVR_vMAPE con pso
 def opt_SVR_vMAPE(x, *args):
     epsilon,c,v,gamma,lck = x
     Xm,y = args
@@ -341,22 +342,25 @@ def opt_SVR_vMAPE(x, *args):
     except:
         mape_vmape = 1000000
     return mape_vmape
-    
+
+print('\tFunciones cargadas.\r')
 #%% Generacion de un hyperplano
+print('\rGenerando datos...\r')
 np.random.seed(1)
 lmin = 1
 lmax = 20
 n = 29
 Xm = genX(lmin=lmin,lmax=lmax,npoints=n)
 y = testfunction3(X=Xm,noise=False)
+print('\tDatos generados.\r')
 
 
 
-#%% Visualizar los datos
-fig = plt.figure()
-ax = fig.add_subplot(111, projection='3d')
-ax.scatter(Xm[:,0], Xm[:,1], y, c=y)
-plt.show()
+##%% Visualizar los datos
+#fig = plt.figure()
+#ax = fig.add_subplot(111, projection='3d')
+#ax.scatter(Xm[:,0], Xm[:,1], y, c=y)
+#plt.show()
 
 
 #%% Optimizacion SVR_E
@@ -366,6 +370,7 @@ plt.show()
 #gamma=0.1
 #lck=1
 #x = (epsilon,c,v,gamma,lck)
+print('\rIniciando optimizacion SVR_E ...\r')
 args = (Xm,y)
 
 # Define the lower and upper bounds for H, d, t, respectively
@@ -376,11 +381,24 @@ ub = [30, 10, 10,100,1]
 ## optimization
 xopt_SVR_E, fopt_SVR_E = pso(opt_SVR_E, lb, ub, args=args)
 
+print('\tOptimizacion SVR_E finalizada\r')
+
+f = open('SVR_E.pckl', 'wb')
+pickle.dump([xopt_SVR_E, fopt_SVR_E], f)
+f.close()
+print('\tOptimizacion SVR_E guardada\r')
+
+#f = open('SVR_E.pckl', 'rb')
+#xopt_SVR_E, fopt_SVR_E = pickle.load(f)
+#f.close()
+
 ## Resultados funcion3 sin ruido y kernel = 'rbf'
 #xopt = [ 0.        ,  7.48118722,  2.60778176, 68.24637782,  0.36195088]
 #fopt = 1.1993081171733968e-06
 
 #%% Optimization SVR_E_MAPE
+print('\rIniciando optimizacion SVR_E_MAPE ...\r')
+
 args = (Xm,y)
 
 # Define the lower and upper bounds for H, d, t, respectively
@@ -389,9 +407,20 @@ ub = [30, 10, 10,100,1]
 
 ## optimization
 xopt_SVR_E_MAPE, fopt_SVR_E_MAPE = pso(opt_SVR_E_MAPE, lb, ub, args=args)
+print('\tOptimizacion SVR_E_MAPE finalizada\r')
+
+f = open('SVR_E_MAPE.pckl', 'wb')
+pickle.dump([xopt_SVR_E_MAPE, fopt_SVR_E_MAPE], f)
+f.close()
+print('\tOptimizacion SVR_E_MAPE guardada\r')
+
+#f = open('SVR_E_MAPE.pckl', 'rb')
+#xopt_SVR_E_MAPE, fopt_SVR_E_MAPE = pickle.load(f)
+#f.close()
 
 
 #%% Optimization SVR_vE
+print('\rIniciando optimizacion SVR_vE ...\r')
 args = (Xm,y)
 
 # Define the lower and upper bounds for H, d, t, respectively
@@ -400,9 +429,19 @@ ub = [30, 10, 10,100,1]
 
 ## optimization
 xopt_SVR_vE, fopt_SVR_vE = pso(opt_SVR_vE, lb, ub, args=args)
+print('\tOptimizacion SVR_vE finalizada\r')
+
+f = open('SVR_vE.pckl', 'wb')
+pickle.dump([xopt_SVR_vE, fopt_SVR_vE], f)
+f.close()
+print('\tOptimizacion SVR_vE guardada\r')
+#f = open('SVR_vE.pckl', 'rb')
+#xopt_SVR_vE, fopt_SVR_vE = pickle.load(f)
+#f.close()
 
 
 #%% Optimization SVR_vMAPE
+print('\rIniciando optimizacion SVR_vMAPE ...\r')
 args = (Xm,y)
 
 # Define the lower and upper bounds for H, d, t, respectively
@@ -411,3 +450,13 @@ ub = [30, 10, 10,100,1]
 
 ## optimization
 xopt_SVR_vMAPE, fopt_SVR_vMAPE = pso(opt_SVR_vMAPE, lb, ub, args=args)
+print('\tOptimizacion SVR_vMAPE finalizada\r')
+
+f = open('SVR_vMAPE.pckl', 'wb')
+pickle.dump([xopt_SVR_vMAPE, fopt_SVR_vMAPE], f)
+f.close()
+print('\tOptimizacion SVR_vMAPE guardada\r')
+
+#f = open('SVR_vMAPE.pckl', 'rb')
+#xopt_SVR_vMAPE, fopt_SVR_vMAPE = pickle.load(f)
+#f.close()
