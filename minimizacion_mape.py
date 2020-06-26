@@ -4,7 +4,7 @@ from numpy import mean, abs, shape, ones, float64, concatenate, identity, zeros,
 from pandas import DataFrame, get_dummies, read_excel, concat
 from scipy.ndimage.interpolation import shift
 from scipy import signal
-from sklearn.metrics.pairwise import linear_kernel
+from sklearn.metrics.pairwise import linear_kernel, rbf_kernel
 from sklearn.linear_model import Lasso, LinearRegression
 from sklearn.metrics import mean_squared_error
 from sklearn.model_selection import train_test_split
@@ -16,6 +16,14 @@ from cvxpy import Variable, Minimize, quad_form, Problem
 def mean_absolute_percentage_error(y_true, y_pred):
     return mean(abs((y_true - y_pred) / y_true)) * 100
 
+def custom_kernel(X1, X2, kernel='linear', gamma=None, lck=1):
+    if kernel == 'linear':
+        K = linear_kernel(X1, X2)
+    elif kernel == 'rbf':
+        K = rbf_kernel(X1, X2, gamma=gamma)
+    elif kernel == 'linrbf':
+        K = lck * linear_kernel(X1, X2) + (1 - lck) * rbf_kernel(X1, X2, gamma=gamma)
+    return K
 
 def SVR_E(X, y, epsilon=0.01, c=10, kernel='linear', gamma=None, lck=1):
     umbral = 1E-5 
@@ -23,12 +31,7 @@ def SVR_E(X, y, epsilon=0.01, c=10, kernel='linear', gamma=None, lck=1):
     nsamples, nfeatures = shape(X)
     onev = ones((nsamples, 1))
     
-    if kernel == 'linear':
-        K = linear_kernel(X, X)
-    elif kernel == 'rbf':
-        K = rbf_kernel(X, X, gamma=gamma)
-    elif kernel == 'linrbf':
-        K = linrbf_kernel(X, X, gamma=gamma, lck=lck)
+    K = custom_kernel(X, X, kernel=kernel, gamma=gamma, lck=lck)
 
     alpha1 = Variable((nsamples, 1))
     alpha2 = Variable((nsamples, 1))
@@ -66,12 +69,7 @@ def SVR_E_MAPE(X, y, epsilon=0.01, c=10, kernel='linear', gamma=None, lck=1):
     nsamples, nfeatures = shape(X)
     onev = ones((nsamples, 1))
     
-    if kernel == 'linear':
-        K = linear_kernel(X, X)
-    elif kernel == 'rbf':
-        K = rbf_kernel(X, X, gamma=gamma)
-    elif kernel == 'linrbf':
-        K = linrbf_kernel(X, X, gamma=gamma, lck=lck)
+    K = custom_kernel(X, X, kernel=kernel, gamma=gamma, lck=lck)
     
     alpha1 = Variable((nsamples, 1))
     alpha2 = Variable((nsamples, 1))
@@ -87,6 +85,7 @@ def SVR_E_MAPE(X, y, epsilon=0.01, c=10, kernel='linear', gamma=None, lck=1):
     prob = Problem(objective, constraints)
     result = prob.solve()
     
+
     
     alpha1 = array(alpha1.value)
     alpha2 = array(alpha2.value)
@@ -107,12 +106,7 @@ def SVR_vE(X, y, epsilon=0.01, c=10, v=1, kernel='linear', gamma=None, lck=1):
     nsamples, nfeatures = shape(X)
     onev = ones((nsamples, 1))
     
-    if kernel == 'linear':
-        K = linear_kernel(X, X)
-    elif kernel == 'rbf':
-        K = rbf_kernel(X, X, gamma=gamma)
-    elif kernel == 'linrbf':
-        K = linrbf_kernel(X, X, gamma=gamma, lck=lck)
+    K = custom_kernel(X, X, kernel=kernel, gamma=gamma, lck=lck)
     
     alpha1 = Variable((nsamples, 1))
     alpha2 = Variable((nsamples, 1))
@@ -149,12 +143,7 @@ def SVR_vMAPE(X, y, epsilon=0.01, c=10, v=1, kernel='linear', gamma=None, lck=1)
     nsamples, nfeatures = shape(X)
     onev = ones((nsamples, 1))
     
-    if kernel == 'linear':
-        K = linear_kernel(X, X)
-    elif kernel == 'rbf':
-        K = rbf_kernel(X, X, gamma=gamma)
-    elif kernel == 'linrbf':
-        K = linrbf_kernel(X, X, gamma=gamma, lck=lck)
+    K = custom_kernel(X, X, kernel=kernel, gamma=gamma, lck=lck)
     
     alpha1 = Variable((nsamples, 1))
     alpha2 = Variable((nsamples, 1))
@@ -406,75 +395,80 @@ def kron(n):
     combination = kronecker(X, sencos)
     return combination.join(modclima)
 
-def f(x, i):
-    epsilon, c, v = x[0], x[1], x[2]
-
+def f(Xm, y, x, i, kernel):
+    epsilon, c, v, gamma, lck = x[0], x[1], x[2], x[3], x[4]
+    default_error = 100000000000
     if i == 0:
         try:
-            w_mape, b_mape = SVR_E_MAPE(Xm, y, epsilon=epsilon, c=c)
+            w_mape, b_mape = SVR_E_MAPE(Xm, y, epsilon=epsilon, c=c, kernel=kernel, gamma=gamma, lck=lck)
             y_mape = dot(Xm, w_mape) + b_mape
 
             rmse_mape, mape_mape = mean_squared_error(y, y_mape), mean_absolute_percentage_error(y, y_mape)
             
         except: 
-            mape_mape = 100000
+            mape_mape = default_error
         print(mape_mape)
         print(x)
         return mape_mape
     elif i == 1:
         try:
-            w_vmape, b_vmape = SVR_vMAPE(Xm, y, epsilon=epsilon, c=c, v=v)
+            w_vmape, b_vmape = SVR_vMAPE(Xm, y, epsilon=epsilon, c=c, v=v, kernel=kernel, gamma=gamma, lck=lck)
             y_vmape = dot(Xm, w_vmape) + b_vmape
 
             rmse_vmape, mape_vmape = mean_squared_error(y, y_vmape), mean_absolute_percentage_error(y, y_vmape)
             
         except: 
-            mape_vmape = 100000
+            mape_vmape = default_error
         print(mape_vmape)
         print(x)
         return mape_vmape
     elif i == 2:
         try:
-            w_Ereg, b_Ereg = SVR_E(Xm, y, epsilon=epsilon, c=c)
+            w_Ereg, b_Ereg = SVR_E(Xm, y, epsilon=epsilon, c=c, kernel=kernel, gamma=gamma, lck=lck)
             y_Ereg = dot(Xm, w_Ereg) + b_Ereg
 
             rmse_ereg, mape_ereg = mean_squared_error(y, y_Ereg), mean_absolute_percentage_error(y, y_Ereg)
         except:
-            mape_ereg = 100000
+            mape_ereg = default_error
 
         print(mape_ereg)
         print(x)
         return mape_ereg
     else:
         try:
-            w_vE, b_vE = SVR_vE(Xm, y, epsilon=epsilon, c=c, v=v)
+            w_vE, b_vE = SVR_vE(Xm, y, epsilon=epsilon, c=c, v=v, kernel=kernel, gamma=gamma, lck=lck)
             y_vE = dot(Xm, w_vE) + b_vE
 
             rmse_vE, mape_vE = mean_squared_error(y, y_vE), mean_absolute_percentage_error(y, y_vE)
             
         except:
-            mape_vE = 100000
+            mape_vE = default_error
         print(mape_vE)
         print(x)
         return mape_vE
 
 
-def pso(np, iterations, formulation):
-    x1p = reshape([random.uniform(0, .01, np), random.randint(1, 100, np), random.randint(1, 10, np)], (3,np)).T
+def pso(Xm, y, np, iterations, formulation, kernel):
+    x1p = reshape([random.uniform(0, .01, np),
+                   random.randint(1, 100, np),
+                   random.randint(1, 10, np),
+                   random.rand(np),
+                   random.rand(np)],
+                   (5, np)).T
     
-    if formulation == 0:
-        x1p[0] = [0.005371852, 29836008.08, 2.55952]
-        x1p[1] = [0.007994567, 107409535.5, 2.903568]
-    elif formulation == 1:
-        x1p[0] = [0.005530169, 359906.908, 7.558]
-        x1p[1] = [0.002981206, 215980.1448, 17.0066]
-    elif formulation == 2:
-        x1p[0] = [0.009445345, 701, 4.6]
-    else:
-        x1p[0] = [0.002321687, 2904.54, 7.2]
-        x1p[1] = [0.006036079, 364.8, 11.2]
+    # if formulation == 0:
+    #     x1p[0] = [0.005371852, 29836008.08, 2.55952]
+    #     x1p[1] = [0.007994567, 107409535.5, 2.903568]
+    # elif formulation == 1:
+    #     x1p[0] = [0.005530169, 359906.908, 7.558]
+    #      x1p[1] = [0.002981206, 215980.1448, 17.0066]
+    # elif formulation == 2:
+    #     x1p[0] = [0.009445345, 701, 4.6]
+    # else:
+    #     x1p[0] = [0.002321687, 2904.54, 7.2]
+    #     x1p[1] = [0.006036079, 364.8, 11.2]
 
-    x1pg = [.01, 10, 1]
+    x1pg = [.01, 10, 1, .5, .5]
 
     vx1 = x1p
     x1pL = x1p
@@ -491,7 +485,7 @@ def pso(np, iterations, formulation):
         
         for variables, j in zip(x1p, range(np)):
             print(i, j)
-            fx[j] = f(variables, formulation)
+            fx[j] = f(Xm, y, variables, formulation, kernel)
             
         ind = argmin(fx)
         val = fx[ind]
@@ -506,10 +500,18 @@ def pso(np, iterations, formulation):
 
         for p in range(np):
             vx1[p] = vx1[p] \
-                + c1 * array([random.uniform(0,.01), random.randint(1,100), random.randint(1,10)]) * (x1pg - x1p[p]) \
-                + c2 * array([random.uniform(0,.01), random.randint(1,100), random.randint(1,10)]) * (x1pL[p] - x1p[p])
+                    + c1 * array([random.uniform(0, .01),
+                              random.randint(1, 100),
+                              random.randint(1, 10),
+                              random.rand(),
+                              random.rand()]) * (x1pg - x1p[p]) \
+                    + c2 * array([random.uniform(0, .01),
+                              random.randint(1, 100),
+                              random.randint(1, 10),
+                              random.rand(),
+                              random.rand()]) * (x1pL[p] - x1p[p])
     
-    return x1pg[0], x1pg[1], x1pg[2]
+    return x1pg[0], x1pg[1], x1pg[2], x1pg[3], x1pg[4]
 
 n = 7
 c = 7
@@ -519,7 +521,7 @@ X = kron(n)
 y = ravel(consumo)
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=n, shuffle=False)
 
-for i in range(7):
+for i in range(3,7):
     Xm = X_train[:200 + i]
     y = y_train[:200 + i]
     np = 25
@@ -528,24 +530,23 @@ for i in range(7):
     X_test = X_train[200 + i:207 + i]
     y_test = y_train[200 + i:207 + i]
 
-    kernel = 'linear'
-    gamma = None
-    lck = 1
+    # kernel = 'linear'
+    kernel = 'rbf'
 
-    epsilon, c, v = pso(np, iterations, 2)
+    epsilon, c, v, gamma, lck = pso(Xm, y, np, iterations, 2, kernel)
     w_Ereg, b_Ereg = SVR_E(Xm, y, epsilon=epsilon, c=c, kernel=kernel, gamma=gamma, lck=lck)
     y_Ereg = dot(Xm, w_Ereg) + b_Ereg
 
-    epsilon1, c1, v1 = pso(np, iterations, 0)
-    w_mape, b_mape = SVR_E_MAPE(Xm, y, epsilon=epsilon1, c=c1, kernel=kernel, gamma=gamma, lck=lck)
+    epsilon1, c1, v1, gamma1, lck1 = pso(Xm, y, np, iterations, 0, kernel)
+    w_mape, b_mape = SVR_E_MAPE(Xm, y, epsilon=epsilon1, c=c1, kernel=kernel, gamma=gamma1, lck=lck1)
     y_mape = dot(Xm, w_mape) + b_mape
 
-    epsilon2, c2, v2 = pso(np, iterations, 3)
-    w_vE, b_vE = SVR_vE(Xm, y, epsilon=epsilon2, c=c2, v=v2, kernel=kernel, gamma=gamma, lck=lck)
+    epsilon2, c2, v2, gamma2, lck2 = pso(Xm, y, np, iterations, 3, kernel)
+    w_vE, b_vE = SVR_vE(Xm, y, epsilon=epsilon2, c=c2, v=v2, kernel=kernel, gamma=gamma2, lck=lck2)
     y_vE = dot(Xm, w_vE) + b_vE
 
-    epsilon3, c3, v3 = pso(np, iterations, 1)
-    w_vmape, b_vmape = SVR_vMAPE(Xm, y, epsilon=epsilon3, c=c3, v=v3, kernel=kernel, gamma=gamma, lck=lck)
+    epsilon3, c3, v3, gamma3, lck3 = pso(Xm, y, np, iterations, 1, kernel)
+    w_vmape, b_vmape = SVR_vMAPE(Xm, y, epsilon=epsilon3, c=c3, v=v3, kernel=kernel, gamma=gamma3, lck=lck3)
     y_vmape = dot(Xm, w_vmape) + b_vmape
 
     rmse_ereg, mape_ereg = mean_squared_error(y, y_Ereg), mean_absolute_percentage_error(y, y_Ereg)
@@ -559,10 +560,10 @@ for i in range(7):
                         [sqrt(rmse_vE), mape_vE], 
                         [sqrt(rmse_vmape), mape_vmape]])
 
-    hiperparams = DataFrame([[epsilon, c, v],
-                            [epsilon1, c1, v1],
-                            [epsilon2, c2, v2],
-                            [epsilon3, c3, v3]])
+    hiperparams = DataFrame([[epsilon, c, v, gamma, lck],
+                            [epsilon1, c1, v1, gamma1, lck1],
+                            [epsilon2, c2, v2, gamma2, lck2],
+                            [epsilon3, c3, v3, gamma3, lck3]])
 
     results.to_csv('results_train_'+kernel+'_D'+str(i)+'.csv')
     hiperparams.to_csv('hiperparams_'+kernel+'_D'+str(i)+'.csv')
