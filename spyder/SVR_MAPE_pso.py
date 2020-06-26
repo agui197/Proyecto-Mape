@@ -12,12 +12,14 @@ from mpl_toolkits.mplot3d import Axes3D
 from sklearn.metrics.pairwise import (linear_kernel,rbf_kernel)
 import cvxpy as cp #https://www.cvxpy.org/
 from sklearn.metrics import mean_squared_error
+from pyswarm import pso
 
-#%% Funcion MAPE
+#%% Funciones a utilizar
+#% Funcion MAPE
 def mean_absolute_percentage_error(y_true,y_pred):
     return np.mean(np.abs((y_true - y_pred) / y_true)) * 100
 
-#%% Generate X data points
+#% Generate X data points
 def genX(lmin=0,lmax=20,npoints=29):
     x1 = np.linspace(lmin,lmax,npoints)
     x2 = np.linspace(lmin,lmax,npoints)
@@ -28,7 +30,7 @@ def genX(lmin=0,lmax=20,npoints=29):
     return Xm
 
 
-#%% Test function 1 (Hyperplane)
+#% Test function 1 (Hyperplane)
 def testfunction1(X,noise=False):
     # Modelo: Y = 2*X1+3*X2+40
     X1 = X[:,0]
@@ -41,7 +43,7 @@ def testfunction1(X,noise=False):
     y = np.ravel(Y.T)
     return y
 
-#%% Test function 2
+#% Test function 2
 def testfunction2(X,noise=False):
     # Modelo: Y = 500+(x1^2-x2^2)*sin(0.5*x1)+10
     X1 = X[:,0]
@@ -56,7 +58,7 @@ def testfunction2(X,noise=False):
     y = np.ravel(Y.T)
     return y
 
-#%% Test function 3
+#% Test function 3
 def testfunction3(X,noise=False):
     # Modelo: Y = sin(sqrt(x1^2+x2^2))/sqrt(x1^2+x2^2)+10
     X1 = X[:,0]
@@ -73,7 +75,7 @@ def testfunction3(X,noise=False):
     y = np.ravel(Y.T)
     return y
 
-#%% Test function 4
+#% Test function 4
 def testfunction4(X,noise=False):
     # Modelo: Y = x1^2+x2^2-np.cos(2*x1)-np.cos(2*x2)+10
     X1 = X[:,0]
@@ -88,7 +90,7 @@ def testfunction4(X,noise=False):
     y = np.ravel(Y.T)
     return y
 
-#%% Custom kernel function
+#% Custom kernel function
 def custom_kernel(X1,X2,kernel='linear',gamma=None,lck=1):
     # Kernel matrix
     if kernel == 'linear':
@@ -99,32 +101,13 @@ def custom_kernel(X1,X2,kernel='linear',gamma=None,lck=1):
         K = lck*linear_kernel(X1,X2)+(1-lck)*rbf_kernel(X1,X2,gamma=gamma)
     return K
 
-#%% Simulacion del modelo de regresion
+#% Simulacion del modelo de regresion
 def sim_modelo(X,params):
     K_sv = custom_kernel(params[0],X,kernel=params[3],gamma=params[4],lck=params[5])
     y = np.dot(params[1],K_sv)+params[2]
     return y
 
-#%% Generacion de un hyperplano
-np.random.seed(1)
-lmin = 1
-lmax = 20
-n = 29
-Xm = genX(lmin=lmin,lmax=lmax,npoints=n)
-#y = testfunction1(X=Xm,noise=True)
-#y = testfunction2(X=Xm,noise=True)
-y = testfunction3(X=Xm,noise=False)
-#y = testfunction4(X=Xm,noise=True)
-
-
-
-#%% Visualizar los datos
-fig = plt.figure()
-ax = fig.add_subplot(111, projection='3d')
-ax.scatter(Xm[:,0], Xm[:,1], y, c=y)
-plt.show()
-
-#%% Funcion SVR_E
+#% Funcion SVR_E
 def SVR_E(X,y,epsilon=0.01,c=10,kernel='linear',gamma=None,lck=1):
     # epsilon = 0.01 # margin max
     # c = 10 # alphas constraint
@@ -170,39 +153,8 @@ def SVR_E(X,y,epsilon=0.01,c=10,kernel='linear',gamma=None,lck=1):
     b = np.mean(y_sv-np.dot(alpha_sv,custom_kernel(x_sv,x_sv,kernel=kernel,gamma=gamma,lck=lck)))
     
     return x_sv,alpha_sv,b,kernel,gamma,lck
-#%% Aplicar la regresion epsilon
-# Parameters values
-#   epsilon default: 0.1, epsilon>0
-#   c default: 10, c>0
-#   kernel default: 'linear', other values ('rbf','linrbf')
-#   gamma default: None, other values gamma>0
-#   lck default: 1 (linear kernel), other values 0<=lck<=1
 
-# kernel = 'linear' # kernel type selection
-# lck = 1 # constant to kernel linear combination
-# gamma = None # parameter
-
-params_E = SVR_E(Xm,y,epsilon=0.01,c=10,kernel='rbf',gamma=None,lck=1)
-
-#% Simular el modelo
-y_Ereg = sim_modelo(Xm,params_E)
-
-
-#% Visualizar los resultados
-fig = plt.figure()
-ax = fig.add_subplot(111, projection='3d')
-ax.scatter(Xm[:,0], Xm[:,1], y, c=y,s=5)
-ax.scatter(Xm[:,0], Xm[:,1], y_Ereg, c='r',s=10)
-#ax.view_init(30, 0)
-plt.show()
-
-
-
-
-
-
-######################################
-#%% Optimization E-regression MAPE usando cvxpy
+#% Optimization E-regression MAPE usando cvxpy
 def SVR_E_MAPE(X,y,epsilon=0.01,c=10,kernel='rbf',gamma=None,lck=1):
     # epsilon = 0.01 # margin max
     # c = 10 # alphas constraint
@@ -247,21 +199,7 @@ def SVR_E_MAPE(X,y,epsilon=0.01,c=10,kernel='rbf',gamma=None,lck=1):
     
     return x_sv,alpha_sv,b,kernel,gamma,lck
 
-#%% Aplicar la regresion epsilon MAPE
-params_Emape = SVR_E_MAPE(Xm,y,epsilon=0.01,c=10,kernel='rbf',gamma=None,lck=1)
-
-#% Simular el modelo
-y_mape = sim_modelo(Xm,params_Emape)
-
-#% Visualizar los resultados
-fig = plt.figure()
-ax = fig.add_subplot(111, projection='3d')
-ax.scatter(Xm[:,0],Xm[:,1], y, c=y,s=5)
-ax.scatter(Xm[:,0],Xm[:,1], y_mape, c='r',s=10)
-#ax.view_init(30, 0)
-plt.show()
-
-#%% Optimization classic v formulation E-regression usando cvxpy
+#% Optimization classic v formulation E-regression usando cvxpy
 def SVR_vE(X,y,epsilon=0.01,c=10,v=1,kernel='linear',gamma=None,lck=1):
     #    epsilon = 0.01 # margin max
     #    v = 1 # New term
@@ -309,21 +247,7 @@ def SVR_vE(X,y,epsilon=0.01,c=10,v=1,kernel='linear',gamma=None,lck=1):
     
     return x_sv,alpha_sv,b,kernel,gamma,lck
 
-#%% Aplicar la regresion epsilon con formulacion v
-params_vE = SVR_vE(Xm,y,epsilon=0.01,c=10,v=1,kernel='rbf',gamma=None,lck=1)
-
-#% Simular el modelo
-y_vE = sim_modelo(Xm,params_vE)
-
-#% Visualizar los resultados
-fig = plt.figure()
-ax = fig.add_subplot(111, projection='3d')
-ax.scatter(Xm[:,0],Xm[:,1], y, c=y,s=5)
-ax.scatter(Xm[:,0],Xm[:,1], y_vE, c='r',s=10)
-#ax.view_init(30, 0)
-plt.show()
-
-#%% Optimization v formulation MAPE-regression usando cvxpy
+#% Optimization v formulation MAPE-regression usando cvxpy
 def SVR_vMAPE(X,y,epsilon=0.01,c=10,v=1,kernel='linear',gamma=None,lck=1):
     #    epsilon = 0.01 # margin max
     #    v = 1 # New term
@@ -370,25 +294,120 @@ def SVR_vMAPE(X,y,epsilon=0.01,c=10,v=1,kernel='linear',gamma=None,lck=1):
     
     return x_sv,alpha_sv,b,kernel,gamma,lck
 
-#%% Aplicar la regresion epsilon con formulacion v
-params_vmape = SVR_vMAPE(Xm,y,epsilon=0.01,c=10,v=1,kernel='rbf',gamma=None,lck=1)
+#%% Funcion para optimizar parametros de formulacion SVR_E con pso
+def opt_SVR_E(x, *args):
+    epsilon,c,v,gamma,lck = x
+    Xm,y = args
+    try:
+        params_E = SVR_E(Xm,y,epsilon=epsilon,c=c,kernel='rbf',gamma=gamma,lck=lck)
+        y_Ereg = sim_modelo(Xm,params_E)
+        mape_ereg = mean_absolute_percentage_error(y,y_Ereg)
+    except:
+        mape_ereg = 1000000
+    return mape_ereg
 
-#% Simular el modelo
-y_vmape = sim_modelo(Xm,params_vmape)
+#%% Funcion para optimizar parametros de formulacion SVR_E_MAPE con pso
+def opt_SVR_E_MAPE(x, *args):
+    epsilon,c,v,gamma,lck = x
+    Xm,y = args
+    try:
+        params_Emape = SVR_E_MAPE(Xm,y,epsilon=0.01,c=10,kernel='rbf',gamma=None,lck=1)
+        y_mape = sim_modelo(Xm,params_Emape)
+        mape_mape = mean_absolute_percentage_error(y,y_mape)
+    except:
+        mape_mape = 1000000
+    return mape_mape
 
-#% Visualizar los resultados
+#%% Funcion para optimizar parametros de formulacion SVR_vE con pso
+def opt_SVR_vE(x, *args):
+    epsilon,c,v,gamma,lck = x
+    Xm,y = args
+    try:
+        params_vE = SVR_vE(Xm,y,epsilon=0.01,c=10,v=1,kernel='rbf',gamma=None,lck=1)
+        y_vE = sim_modelo(Xm,params_vE)
+        mape_vE = mean_absolute_percentage_error(y,y_vE)
+    except:
+        mape_vE = 1000000
+    return mape_vE
+
+#%% Funcion para optimizar parametros de formulacion SVR_vMAPE con pso
+def opt_SVR_vMAPE(x, *args):
+    epsilon,c,v,gamma,lck = x
+    Xm,y = args
+    try:
+        params_vmape = SVR_vMAPE(Xm,y,epsilon=0.01,c=10,v=1,kernel='rbf',gamma=None,lck=1)
+        y_vmape = sim_modelo(Xm,params_vmape)
+        mape_vmape = mean_absolute_percentage_error(y,y_vmape)
+    except:
+        mape_vmape = 1000000
+    return mape_vmape
+    
+#%% Generacion de un hyperplano
+np.random.seed(1)
+lmin = 1
+lmax = 20
+n = 29
+Xm = genX(lmin=lmin,lmax=lmax,npoints=n)
+y = testfunction3(X=Xm,noise=False)
+
+
+
+#%% Visualizar los datos
 fig = plt.figure()
 ax = fig.add_subplot(111, projection='3d')
-ax.scatter(Xm[:,0],Xm[:,1], y, c=y,s=5)
-ax.scatter(Xm[:,0],Xm[:,1], y_vmape, c='r',s=10)
-#ax.view_init(30, 0)
+ax.scatter(Xm[:,0], Xm[:,1], y, c=y)
 plt.show()
 
-#%% Evaluacion de ambas implementaciones
-rmse_ereg,mape_ereg = mean_squared_error(y,y_Ereg),mean_absolute_percentage_error(y,y_Ereg)
-rmse_mape,mape_mape = mean_squared_error(y,y_mape),mean_absolute_percentage_error(y,y_mape)
-rmse_vE,mape_vE = mean_squared_error(y,y_vE),mean_absolute_percentage_error(y,y_vE)
-rmse_vmape,mape_vmape = mean_squared_error(y,y_vmape),mean_absolute_percentage_error(y,y_vmape)
 
-#%%
-print('\n\n\t\t\t RMSE\t\t MAPE\n Formulation Ereg\t %0.4f\t\t %0.4f\n Formulation Emape\t %0.4f\t\t %0.4f\n Formulation vE\t\t %0.4f\t\t %0.4f\n Formulation vmape\t %0.4f\t\t %0.4f'%(rmse_ereg,mape_ereg,rmse_mape,mape_mape,rmse_vE,mape_vE,rmse_vmape,mape_vmape))
+#%% Optimizacion SVR_E
+#epsilon=0.01
+#c=10
+#v=1
+#gamma=0.1
+#lck=1
+#x = (epsilon,c,v,gamma,lck)
+args = (Xm,y)
+
+# Define the lower and upper bounds for H, d, t, respectively
+lb = [0, 0, 0,0,0]
+ub = [30, 10, 10,100,1]
+
+
+## optimization
+xopt_SVR_E, fopt_SVR_E = pso(opt_SVR_E, lb, ub, args=args)
+
+## Resultados funcion3 sin ruido y kernel = 'rbf'
+#xopt = [ 0.        ,  7.48118722,  2.60778176, 68.24637782,  0.36195088]
+#fopt = 1.1993081171733968e-06
+
+#%% Optimization SVR_E_MAPE
+args = (Xm,y)
+
+# Define the lower and upper bounds for H, d, t, respectively
+lb = [0, 0, 0,0,0]
+ub = [30, 10, 10,100,1]
+
+## optimization
+xopt_SVR_E_MAPE, fopt_SVR_E_MAPE = pso(opt_SVR_E_MAPE, lb, ub, args=args)
+
+
+#%% Optimization SVR_E_MAPE
+args = (Xm,y)
+
+# Define the lower and upper bounds for H, d, t, respectively
+lb = [0, 0, 0,0,0]
+ub = [30, 10, 10,100,1]
+
+## optimization
+xopt_SVR_vE, fopt_SVR_vE = pso(opt_SVR_vE, lb, ub, args=args)
+
+
+#%% Optimization SVR_E_MAPE
+args = (Xm,y)
+
+# Define the lower and upper bounds for H, d, t, respectively
+lb = [0, 0, 0,0,0]
+ub = [30, 10, 10,100,1]
+
+## optimization
+xopt_SVR_vMAPE, fopt_SVR_vMAPE = pso(opt_SVR_vMAPE, lb, ub, args=args)
